@@ -6,6 +6,17 @@ seule la disposition des salles est conservée. Voir `ANALYSE.md`.
 
 Le prototype est en Python 3, sans dépendance externe.
 
+![Menu principal de Doom2Nethack](docs/menu.svg)
+
+*Le menu interactif (`./menuDoom2Nethack.sh`) : conversion des cartes d'un
+WAD, niveaux convertis, journal des conversions.*
+
+![E1M1 de Freedoom converti et chargé dans NetHack](docs/e1m1-nethack.svg)
+
+*E1M1 de Freedoom converti (mode `raster`, options par défaut), chargé dans
+NetHack en mode wizard avec la touche `p` du menu. Les zones sombres du
+niveau Doom restent dans le noir (sol gris) ; `▮` : portes.*
+
 Pour débuter : `TUTORIAL.md`, un tutoriel pas à pas avec le menu
 interactif (convertir, regarder et jouer E1M1 de Freedoom, comparer les
 deux modes de conversion, découper un grand niveau, convertir un

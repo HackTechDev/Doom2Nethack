@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="833" height="388" viewBox="0 0 833 388">
+<style>text{font-family:"DejaVu Sans Mono",Menlo,Consolas,"Liberation Mono",monospace;font-size:14px;white-space:pre}.b{font-weight:bold}.u{text-decoration:underline}</style>
+<rect width="833" height="388" rx="8" fill="#1e1e1e"/>
+<rect width="833" height="28" rx="8" fill="#323233"/>
+<rect y="20" width="833" height="8" fill="#323233"/>
+<circle cx="18" cy="14.0" r="6" fill="#ff5f57"/>
+<circle cx="38" cy="14.0" r="6" fill="#febc2e"/>
+<circle cx="58" cy="14.0" r="6" fill="#28c840"/>
+<text x="417" y="19.0" fill="#aaaaaa" text-anchor="middle" style="font-size:13px">./menuDoom2Nethack.sh</text>
+<rect x="12.00" y="34" width="809.88" height="18" fill="#2472c8"/>
+<text x="12.00" y="48" fill="#ffffff" class="b" textLength="134.88" lengthAdjust="spacingAndGlyphs"> ◆ Doom2NetHack </text>
+<text x="146.88" y="48" fill="#e5e5e5" textLength="16.86" lengthAdjust="spacingAndGlyphs">› </text>
+<text x="163.74" y="48" fill="#ffffff" class="b" textLength="118.02" lengthAdjust="spacingAndGlyphs">menu principal</text>
+<text x="20.43" y="66" fill="#11a8cd" textLength="109.59" lengthAdjust="spacingAndGlyphs">Fichier WAD  </text>
+<text x="130.02" y="66" fill="#d4d4d4" class="b" textLength="379.35" lengthAdjust="spacingAndGlyphs">/home/sgond/app/freedoom-0.13.0/freedoom1.wad</text>
+<text x="12.00" y="84" fill="#747474" textLength="809.28" lengthAdjust="spacingAndGlyphs">────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text x="37.29" y="102" fill="#f14c4c" class="b" textLength="143.31" lengthAdjust="spacingAndGlyphs">█▀▄ █▀█ █▀█ █▀▄▀█</text>
+<text x="248.04" y="102" fill="#f5f543" class="b" textLength="236.04" lengthAdjust="spacingAndGlyphs">█▄ █ █▀▀ ▀█▀ █ █ ▄▀▄ ▄▀▀ █▄▀</text>
+<text x="37.29" y="120" fill="#f14c4c" class="b" textLength="143.31" lengthAdjust="spacingAndGlyphs">█▄▀ █▄█ █▄█ █ ▀ █</text>
+<text x="205.89" y="120" fill="#747474" textLength="16.86" lengthAdjust="spacingAndGlyphs">━▶</text>
+<text x="248.04" y="120" fill="#f5f543" class="b" textLength="236.04" lengthAdjust="spacingAndGlyphs">█ ▀█ ██▄  █  █▀█ █▀█ ▀▄▄ █ █</text>
+<text x="20.43" y="138" fill="#747474" textLength="396.21" lengthAdjust="spacingAndGlyphs">  conversion de niveaux Doom en niveaux NetHack</text>
+<rect x="20.43" y="160" width="793.02" height="18" fill="#11a8cd"/>
+<text x="20.43" y="174" fill="#1e1e1e" textLength="792.42" lengthAdjust="spacingAndGlyphs"> ▸ Convertir des cartes        du WAD vers out/&lt;WAD&gt;/                                         </text>
+<text x="12.00" y="192" fill="#d4d4d4" textLength="269.76" lengthAdjust="spacingAndGlyphs">    Niveaux convertis           </text>
+<text x="281.76" y="192" fill="#747474" textLength="227.61" lengthAdjust="spacingAndGlyphs">aperçu, installation, jouer</text>
+<text x="12.00" y="210" fill="#d4d4d4" textLength="269.76" lengthAdjust="spacingAndGlyphs">    Journal des conversions     </text>
+<text x="281.76" y="210" fill="#747474" textLength="109.59" lengthAdjust="spacingAndGlyphs">0 résultat(s)</text>
+<text x="12.00" y="228" fill="#d4d4d4" textLength="269.76" lengthAdjust="spacingAndGlyphs">    Choisir un autre WAD        </text>
+<text x="281.76" y="228" fill="#747474" textLength="202.32" lengthAdjust="spacingAndGlyphs">WAD récents, explorateur</text>
+<text x="28.86" y="246" fill="#747474" textLength="505.80" lengthAdjust="spacingAndGlyphs">  Retirer les branches Doom   0 déclarée(s) dans dungeon.lua</text>
+<text x="12.00" y="264" fill="#d4d4d4" textLength="809.28" lengthAdjust="spacingAndGlyphs">    Quitter                                                                                     </text>
+<rect x="12.00" y="358" width="9.03" height="18" fill="#2472c8"/>
+<rect x="20.43" y="358" width="34.32" height="18" fill="#11a8cd"/>
+<rect x="54.15" y="358" width="84.90" height="18" fill="#2472c8"/>
+<rect x="138.45" y="358" width="68.04" height="18" fill="#11a8cd"/>
+<rect x="205.89" y="358" width="84.90" height="18" fill="#2472c8"/>
+<rect x="290.19" y="358" width="25.89" height="18" fill="#11a8cd"/>
+<rect x="315.48" y="358" width="84.90" height="18" fill="#2472c8"/>
+<rect x="399.78" y="358" width="25.89" height="18" fill="#11a8cd"/>
+<rect x="425.07" y="358" width="388.38" height="18" fill="#2472c8"/>
+<text x="20.43" y="372" fill="#1e1e1e" textLength="33.72" lengthAdjust="spacingAndGlyphs"> ↑↓ </text>
+<text x="54.15" y="372" fill="#e5e5e5" textLength="84.30" lengthAdjust="spacingAndGlyphs"> choisir  </text>
+<text x="138.45" y="372" fill="#1e1e1e" textLength="67.44" lengthAdjust="spacingAndGlyphs"> Entrée </text>
+<text x="205.89" y="372" fill="#e5e5e5" textLength="84.30" lengthAdjust="spacingAndGlyphs"> valider  </text>
+<text x="290.19" y="372" fill="#1e1e1e" textLength="25.29" lengthAdjust="spacingAndGlyphs"> l </text>
+<text x="315.48" y="372" fill="#e5e5e5" textLength="84.30" lengthAdjust="spacingAndGlyphs"> journal  </text>
+<text x="399.78" y="372" fill="#1e1e1e" textLength="25.29" lengthAdjust="spacingAndGlyphs"> q </text>
+<text x="425.07" y="372" fill="#e5e5e5" textLength="387.78" lengthAdjust="spacingAndGlyphs"> quitter                                      </text>
+</svg>

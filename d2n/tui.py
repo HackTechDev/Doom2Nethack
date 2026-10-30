@@ -897,8 +897,8 @@ class App:
                  f"{len(branches)} déclarée(s) dans dungeon.lua",
                  bool(branches)),
                 ("Quitter", "", True)]
-            rows = [([(f"{label:<28}", 0 if on else t["dim"]),
-                      (desc, t["dim"])], on, 0)
+            rows = [([(f"{label:<28}" if on else f"  {label:<28}",
+                       0 if on else t["dim"]), (desc, t["dim"])], on, 0)
                     for label, desc, on in entries]
             h = self.scr.getmaxyx()[0]
             info = [[("  ", 0), (doom, t["logo1"]), ("   ", 0),
