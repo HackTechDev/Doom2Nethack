@@ -49,13 +49,13 @@ def to_lua(res, source="", branch=False):
 
 def dungeon_snippet(dungeon_name, level_names):
     """Extrait à intégrer dans dat/dungeon.lua pour une branche de
-    plusieurs niveaux (test_level.sh le fait automatiquement)."""
+    plusieurs niveaux (convertDoom2Nethack.sh le fait automatiquement)."""
     branch = "".join("-- " + line + "\n" for line in
                      branch_block(dungeon_name).rstrip("\n").split("\n"))
     files = ", ".join(n + ".lua" for n in level_names)
     return f"""\
 -- Branche « {dungeon_name} » générée par Doom2Nethack.
--- (test_level.sh fait toutes ces étapes automatiquement.)
+-- (convertDoom2Nethack.sh fait toutes ces étapes automatiquement.)
 --
 -- 1) Dans dat/dungeon.lua, ajouter à la liste `branches` de
 --    « The Dungeons of Doom » (escalier descendant vers la branche,

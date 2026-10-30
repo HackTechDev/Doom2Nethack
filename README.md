@@ -33,13 +33,13 @@ Options :
 
 ## Tester dans NetHack
 
-`test_level.sh` convertit et installe le niveau, puis indique comment le
-charger :
+`convertDoom2Nethack.sh` convertit et installe le niveau (ou, avec `-n`,
+une branche de plusieurs niveaux), puis indique comment le charger :
 
 ```sh
-./test_level.sh ../freedoom-0.13.0/freedoom1.wad E1M1          # un niveau
-./test_level.sh -n auto ../freedoom-0.13.0/freedoom1.wad E1M1  # branche
-./test_level.sh --restore                                     # annuler
+./convertDoom2Nethack.sh ../freedoom-0.13.0/freedoom1.wad E1M1   # un niveau
+./convertDoom2Nethack.sh -n auto ../freedoom-0.13.0/freedoom1.wad E1M1
+./convertDoom2Nethack.sh --restore      # retirer les branches Doom
 ```
 
 - Un seul niveau : le `.lua` est copié dans le répertoire de jeu (HACKDIR,
@@ -77,7 +77,7 @@ Un grand niveau Doom comprimé sur 75 × 19 cases perd ses détails. Avec
 
 Sont produits `<niveau>a.lua`, `<niveau>b.lua`… et `<niveau>-dungeon.lua`,
 qui explique comment déclarer la branche dans `dat/dungeon.lua` (ce que fait
-`test_level.sh`, via `python3 -m d2n.dungeon patch|unpatch`). Les
+`convertDoom2Nethack.sh`, via `python3 -m d2n.dungeon patch|unpatch`). Les
 passages entre morceaux autres que la chaîne sont perdus, et la sortie Doom
 peut ne pas tomber dans le dernier morceau (avertissement).
 

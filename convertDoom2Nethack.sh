@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Convertit un niveau Doom et l'installe dans NetHack pour le tester.
 #
-#   ./test_level.sh [options] WAD [NIVEAU]
+#   ./convertDoom2Nethack.sh [options] WAD [NIVEAU]
 #
 # Un seul niveau NetHack (défaut) : le .lua est copié dans HACKDIR, à charger
 # avec #wizloaddes.  Avec -n, le niveau Doom devient une branche de plusieurs
@@ -43,7 +43,7 @@ Variables d'environnement :
 EOF
 }
 
-die() { echo "test_level.sh : $*" >&2; exit 1; }
+die() { echo "convertDoom2Nethack.sh : $*" >&2; exit 1; }
 
 confirm() {
     [ "$YES" = 1 ] && return 0
