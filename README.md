@@ -6,6 +6,12 @@ seule la disposition des salles est conservée. Voir `ANALYSE.md`.
 
 Le prototype est en Python 3, sans dépendance externe.
 
+Dépôt : <https://github.com/HackTechDev/Doom2Nethack>
+
+```sh
+git clone https://github.com/HackTechDev/Doom2Nethack.git
+```
+
 ![Menu principal de Doom2Nethack](docs/menu.svg)
 
 *Le menu interactif (`./Doom2Nethack.sh`) : conversion des cartes d'un
