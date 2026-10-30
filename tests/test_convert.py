@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -241,6 +242,28 @@ class TestTui(unittest.TestCase):
         self.assertFalse(any("écrit" in t for t in texts))
         self.assertIn("E9M9     ÉCHEC", texts)
         self.assertEqual(texts[-1], "    erreur")
+
+    def test_options(self):
+        opts = dict(tui.DEFAULT_OPTS)
+        self.assertEqual(len(tui.conversion_args(opts)), 8)
+        opts.update(width=60, keep_aspect=True, coverage=0.5)
+        args = tui.conversion_args(opts)
+        self.assertIn("--keep-aspect", args)
+        self.assertEqual(args[args.index("--width") + 1], "60")
+        self.assertNotIn("--height", args)
+        spec = dict((k, v) for k, _, v, _ in tui.OPTIONS)
+        self.assertEqual(tui.parse_option(spec["coverage"], "0,5"), 0.5)
+        self.assertEqual(tui.parse_option(spec["parts"], "auto"), "auto")
+        self.assertEqual(tui.parse_option(spec["parts"], "7"), "7")
+        for key, text in (("parts", "13"), ("width", "80"), ("dark", "x")):
+            with self.assertRaises(ValueError):
+                tui.parse_option(spec[key], text)
+        ok, lines = tui.run_conversion(self.wad, "MAP01", opts, self.out)
+        self.assertTrue(ok, lines)
+        desc, _ = tui.lua_summary(os.path.join(self.out, "Mon Wad",
+                                               "map01.lua"))
+        width = int(re.match(r"carte (\d+)x", desc).group(1))
+        self.assertLessEqual(width, 60)     # échelle uniforme : plus étroit
 
     def test_bad_map(self):
         ok, lines = tui.run_conversion(self.wad, "E9M9",

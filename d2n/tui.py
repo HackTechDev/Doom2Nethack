@@ -19,6 +19,8 @@ import sys
 import textwrap
 from dataclasses import dataclass
 
+from .convert import MAX_HEIGHT, MAX_WIDTH
+from .split import MAX_PARTS
 from .wad import Wad, WadError
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -33,14 +35,38 @@ META = "doom2nethack.json"
 LAST_WAD = os.path.join(OUT_DIR, ".last-wad")
 
 DEFAULT_OPTS = {"mode": "raster", "parts": "1", "skill": "medium",
-                "hazards": "none", "dark": 144}
-# Touche -> (option, valeurs parcourues en boucle).
+                "hazards": "none", "dark": 144, "rooms": 0,
+                "width": MAX_WIDTH, "height": MAX_HEIGHT,
+                "keep_aspect": False, "coverage": 0.34}
+# Options de l'écran d'options : (clé, libellé, valeurs, aide).  Une liste
+# est parcourue en boucle ; un triplet (type, min, max) est saisi au
+# clavier (type "parts" : nombre de niveaux ou « auto »).
+OPTIONS = [
+    ("mode", "Mode", ["raster", "rooms"],
+     "raster : plan décalqué ; rooms : salles et couloirs"),
+    ("parts", "Découpage", ("parts", 1, MAX_PARTS),
+     f"niveaux NetHack par carte (1 à {MAX_PARTS}, ou auto)"),
+    ("skill", "Difficulté", ["easy", "medium", "hard"],
+     "monstres et objets présents"),
+    ("hazards", "Sols à dégâts", ["none", "water", "lava"],
+     "rendu de la nukage et de la lave"),
+    ("dark", "Seuil de lumière", (int, 0, 256),
+     "secteurs plus sombres laissés dans le noir (0 : tout éclairé)"),
+    ("rooms", "Salles visées", (int, 0, 99),
+     "mode rooms, par niveau (0 : automatique)"),
+    ("width", "Largeur", (int, 3, MAX_WIDTH), "de la carte, en cases"),
+    ("height", "Hauteur", (int, 3, MAX_HEIGHT), "de la carte, en cases"),
+    ("keep_aspect", "Échelle uniforme", [False, True],
+     "sinon la carte est étirée"),
+    ("coverage", "Couverture", (float, 0.01, 1.0),
+     "part d'une case à couvrir pour faire un sol"),
+]
+# Raccourcis du menu de conversion : touche -> (option, valeurs).
 CYCLES = {
     "m": ("mode", ["raster", "rooms"]),
     "n": ("parts", ["1", "2", "3", "4", "auto"]),
     "s": ("skill", ["easy", "medium", "hard"]),
     "h": ("hazards", ["none", "water", "lava"]),
-    "l": ("dark", [144, 0]),
 }
 
 INSTALL_TEXT = """\
@@ -127,8 +153,39 @@ def converted_levels(outdir=OUT_DIR):
 
 
 def conversion_args(opts):
-    return ["--mode", opts["mode"], "--skill", opts["skill"],
+    args = ["--mode", opts["mode"], "--skill", opts["skill"],
             "--hazards", opts["hazards"], "--dark-below", str(opts["dark"])]
+    for key in ("rooms", "width", "height", "coverage"):
+        if opts[key] != DEFAULT_OPTS[key]:
+            args += [f"--{key}", str(opts[key])]
+    if opts["keep_aspect"]:
+        args.append("--keep-aspect")
+    return args
+
+
+def parse_option(spec, text):
+    """Valeur saisie pour une option (type, min, max) ; ValueError si elle
+    est invalide."""
+    kind, lo, hi = spec
+    text = text.strip().replace(",", ".")
+    if kind == "parts" and text == "auto":
+        return text
+    try:
+        value = (float if kind is float else int)(text)
+    except ValueError:
+        value = None
+    if value is None or not lo <= value <= hi:
+        raise ValueError(f"valeur invalide : entre {lo} et {hi}"
+                         + (" ou auto" if kind == "parts" else ""))
+    return str(value) if kind == "parts" else value
+
+
+def option_text(key, value):
+    if key == "keep_aspect":
+        return "oui" if value else "non"
+    if key in ("rooms", "dark") and value == 0:
+        return "automatique" if key == "rooms" else "0 (tout éclairé)"
+    return str(value)
 
 
 def run_conversion(wad, mapname, opts, outdir=OUT_DIR):
@@ -392,12 +449,69 @@ class App:
                 return
             (self.convert_menu, self.converted_menu, self.choose_wad)[sel]()
 
-    def opts_line(self):
+    def opts_lines(self):
         o = self.opts
         dark = f"sombre si lumière < {o['dark']}" if o["dark"] \
             else "tout éclairé"
-        return (f"Options : mode {o['mode']} · découpage {o['parts']} · "
-                f"difficulté {o['skill']} · sols {o['hazards']} · {dark}")
+        rooms = f"{o['rooms']} salles" if o["rooms"] else "salles auto"
+        return [f"Options : mode {o['mode']} · découpage {o['parts']} · "
+                f"difficulté {o['skill']} · sols {o['hazards']} · {dark}",
+                f"          carte {o['width']}x{o['height']} "
+                f"{'à échelle uniforme' if o['keep_aspect'] else 'étirée'} · "
+                f"couverture {o['coverage']} · {rooms}"]
+
+    def options_menu(self):
+        sel = 0
+        while True:
+            rows = [(f"{label:<18} {option_text(k, self.opts[k]):<18} {help}",
+                     True, 0 if self.opts[k] == DEFAULT_OPTS[k]
+                     else curses.A_BOLD) for k, label, _, help in OPTIONS]
+            rows += [("", False, 0), ("Valeurs par défaut", True, 0)]
+            key, sel = self.menu("options de conversion", rows, sel,
+                                 "Entrée changer   q retour",
+                                 info=["En gras : valeur modifiée."])
+            if key == "q":
+                return
+            if sel >= len(OPTIONS):
+                self.opts = dict(DEFAULT_OPTS)
+                continue
+            k, label, spec, _ = OPTIONS[sel]
+            if isinstance(spec, list):
+                i = spec.index(self.opts[k])
+                self.opts[k] = spec[(i + 1) % len(spec)]
+                continue
+            text = self.prompt(f"{label} :", str(self.opts[k]))
+            if text is not None:
+                try:
+                    self.opts[k] = parse_option(spec, text)
+                except ValueError as e:
+                    self.message(str(e))
+
+    def prompt(self, label, value=""):
+        """Saisie d'une ligne dans la barre du bas ; None si Échap."""
+        curses.curs_set(1)
+        try:
+            while True:
+                h, w = self.scr.getmaxyx()
+                text = f" {label} {value}"
+                self.put(h - 1, 0, text.ljust(w), curses.A_REVERSE)
+                try:
+                    self.scr.move(h - 1, min(len(text), w - 2))
+                except curses.error:
+                    pass
+                c = self.key()
+                if c in ENTER:
+                    return value
+                if c == "\x1b":
+                    return None
+                if c in (curses.KEY_BACKSPACE, "\x7f", "\b"):
+                    value = value[:-1]
+                elif c == "\x15":                         # Ctrl-U
+                    value = ""
+                elif isinstance(c, str) and c.isprintable():
+                    value += c
+        finally:
+            curses.curs_set(0)
 
     def convert_menu(self):
         if not self.wad and not self.choose_wad():
@@ -426,9 +540,9 @@ class App:
             key, sel = self.menu(
                 "conversion", rows, sel,
                 "Entrée convertir   Espace cocher   a tout cocher   q retour\n"
-                "m mode   n découpage   s difficulté   h sols   l lumière",
-                keys=" a" + "".join(CYCLES),
-                info=[f"Destination : {rel(d)}/", self.opts_line(),
+                "o options   m mode   n découpage   s difficulté   h sols",
+                keys=" ao" + "".join(CYCLES),
+                info=[f"Destination : {rel(d)}/", *self.opts_lines(),
                       f"{count}{len(names)} carte(s) dans le WAD"])
             if key == "q":
                 return
@@ -437,9 +551,12 @@ class App:
                 sel = min(sel + 1, len(names) - 1)
             elif key == "a":
                 marked = set() if len(marked) == len(names) else set(names)
+            elif key == "o":
+                self.options_menu()
             elif key in CYCLES:
                 opt, values = CYCLES[key]
-                i = values.index(self.opts[opt])
+                i = values.index(self.opts[opt]) \
+                    if self.opts[opt] in values else -1
                 self.opts[opt] = values[(i + 1) % len(values)]
             else:
                 todo = [n for n in names if n in marked] or [names[sel]]

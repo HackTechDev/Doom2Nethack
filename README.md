@@ -75,10 +75,12 @@ choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
   affiche le résultat. Les cartes déjà converties sont marquées. `Espace`
   coche des cartes et `a` les coche toutes : `Entrée` les convertit
   alors l'une après l'autre, avec une barre de progression (`q`
-  interrompt après la carte en cours), puis affiche un résumé. Les
-  options se changent par touche : `m` mode (`raster`/`rooms`), `n`
-  découpage (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts,
-  `l` éclairage.
+  interrompt après la carte en cours), puis affiche un résumé. `o` ouvre
+  l'écran des options : mode, découpage (1 à 12 niveaux ou `auto`),
+  difficulté, sols à dégâts, seuil de lumière, nombre de salles visé,
+  largeur et hauteur de la carte, échelle uniforme et couverture. Les plus
+  courantes ont un raccourci : `m` mode (`raster`/`rooms`), `n` découpage
+  (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts.
 - **Niveaux convertis** : les niveaux de `out/`, classés par section, une
   par fichier WAD. `Entrée` affiche la carte (`←` `→` : niveaux d'une
   branche), `i` l'installe dans NetHack, `x` la supprime. Un niveau simple
