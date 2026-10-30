@@ -123,9 +123,9 @@ Réalisé dans `d2n/tui.py` : conversion des cartes du WAD dans
 `out/<WAD>/`, une à une ou plusieurs d'un coup (cartes cochées), en
 arrière-plan (barre de progression, journal des conversions) et avec toutes les options de `doom2nethack.py` sauf
 `--samples` (écran d'options), niveaux convertis classés par WAD (aperçu,
-installation, suppression, état dans NetHack), retrait des branches Doom
-(`--restore`). Pistes pour aller plus loin :
-- lancer NetHack en mode wizard directement sur le niveau choisi ;
+installation, suppression, état dans NetHack, lancement de NetHack sur le
+niveau), retrait des branches Doom (`--restore`). Pistes pour aller plus
+loin :
 - afficher l'aperçu en couleurs (murs, portes, eau, zones sombres,
   monstres) et comparer côte à côte deux conversions de la même carte ;
 - garder une liste des WAD récents, et saisir un chemin au clavier dans

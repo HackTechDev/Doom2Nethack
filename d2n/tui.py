@@ -23,6 +23,7 @@ from dataclasses import dataclass
 
 from .convert import MAX_HEIGHT, MAX_WIDTH
 from .dungeon import declared
+from .play import play
 from .split import MAX_PARTS
 from .wad import Wad, WadError
 
@@ -849,8 +850,8 @@ class App:
                     + (", ".join(branches) or "aucune")]
             key, sel = self.menu(
                 "niveaux convertis", rows, sel,
-                "Entrée voir   i installer dans NetHack   x supprimer   "
-                "q retour", keys="ix", live=True, info=info)
+                "Entrée voir   p jouer   i installer dans NetHack   "
+                "x supprimer   q retour", keys="pix", live=True, info=info)
             if key == "q":
                 return
             s, lv = index[sel]
@@ -859,7 +860,9 @@ class App:
                 continue
             if key == "\n":
                 key = self.show_level(s, lv)
-            if key == "i":
+            if key == "p":
+                self.play(s, lv)
+            elif key == "i":
                 self.install(s, lv)
             elif key == "x" and self.confirm(f"Supprimer {rel(lv.path)} ?"):
                 delete_level(s, lv)
@@ -876,8 +879,9 @@ class App:
             nav = "←→ niveau   " if level.split else ""
             key = self.pager(
                 f"{section.name} / {level.name}", lines,
-                f"{nav}↑↓ défiler   i installer   x supprimer   q retour",
-                keys=("i", "x", curses.KEY_LEFT, curses.KEY_RIGHT))
+                f"{nav}↑↓ défiler   p jouer   i installer   x supprimer   "
+                "q retour",
+                keys=("p", "i", "x", curses.KEY_LEFT, curses.KEY_RIGHT))
             if key == curses.KEY_LEFT:
                 i = max(i - 1, 0)
             elif key == curses.KEY_RIGHT:
@@ -906,6 +910,39 @@ class App:
         self.shell([SCRIPT, "-n", conv["parts"], *conv["args"], wad,
                     level.name.upper()])
 
+    def play(self, section, level):
+        """Lance NetHack en mode wizard sur le niveau (d2n/play.py)."""
+        state = install_state(level, branches=declared_branches())
+        if state != "installé":
+            if level.split:
+                self.message(f"Branche {state or 'non installée'} : "
+                             "l'installer d'abord (i)")
+                return
+            if not os.path.isdir(HACKDIR):
+                self.message(f"HACKDIR introuvable : {HACKDIR}")
+                return
+            if not self.confirm(f"Copier {level.name}.lua dans {HACKDIR} "
+                                "et lancer NetHack ?"):
+                return
+            shutil.copy(level.path, HACKDIR)
+        if not os.access(NETHACK, os.X_OK):
+            self.message(f"NetHack introuvable : {NETHACK}")
+            return
+        name = os.path.basename(level.parts[0])[:-4]
+        curses.endwin()
+        try:
+            error = play(NETHACK, HACKDIR, name, level.split)
+        except OSError as e:
+            error = str(e)
+        self.redraw()
+        if error:
+            self.message(f"NetHack : {error}")
+
+    def redraw(self):
+        """Reprend l'écran après un programme lancé hors de curses."""
+        self.scr.clear()
+        self.scr.refresh()
+
     def shell(self, cmd):
         """Lance une commande dans le terminal, hors de curses."""
         curses.endwin()
@@ -917,7 +954,7 @@ class App:
             input("\nEntrée pour revenir au menu...")
         except (OSError, KeyboardInterrupt, EOFError) as e:
             print(e)
-        self.scr.refresh()
+        self.redraw()
 
     def choose_wad(self):
         """Explorateur de fichiers ; retourne True si un WAD est choisi."""

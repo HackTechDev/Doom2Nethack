@@ -92,10 +92,34 @@ choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
   déclaré dans `dat/dungeon.lua` (« installé, autre version » : le
   fichier copié diffère, par exemple une carte du même nom d'un autre
   WAD). `Entrée` affiche la carte (`←` `→` : niveaux d'une branche), `i`
-  l'installe dans NetHack, `x` la supprime. Un niveau simple
+  l'installe dans NetHack, `x` la supprime, `p` lance NetHack en mode
+  wizard directement sur le niveau (voir ci-dessous). Un niveau simple
   est copié dans le répertoire de jeu ; une branche est installée par
   `convertDoom2Nethack.sh` avec les options de sa conversion (gardées dans
   `out/<WAD>/doom2nethack.json`).
+
+#### Jouer un niveau depuis le menu (`p`)
+
+NetHack est lancé en mode wizard (`nethack -D`). On répond soi-même aux
+questions du début de partie (personnage, tutoriel) ; dès que la carte
+s'affiche, le menu tape à votre place les touches qui mènent au niveau,
+puis vous rend la main :
+
+- niveau simple : `Ctrl-V` `3` (téléportation au niveau 3), `#wizloaddes`
+  et le nom du niveau, puis `Ctrl-F`. Le niveau est d'abord copié dans le
+  répertoire de jeu s'il n'y est pas (après confirmation) ;
+- branche : `Ctrl-V` `?`, choix du premier niveau de la branche dans le
+  menu de téléportation, puis `Ctrl-F`. La branche doit être installée
+  (`i`).
+
+Les `--More--` (`--Plus--`) sont fermés automatiquement. Les invites sont
+reconnues en anglais et en français. En mode wizard, le personnage
+s'appelle toujours `wizard` : une partie `wizard` sauvegardée est
+reprise, puis téléportée au niveau. En fin de partie (ou après `S` pour
+sauvegarder), on revient au menu. Hors du menu :
+`python3 -m d2n.play e1m1` ou `python3 -m d2n.play --branch e1m1a`.
+`D2N_PLAY_LOG=fichier` enregistre les touches envoyées, pour le
+débogage.
 
 `Choisir un autre fichier WAD` ouvre un explorateur de fichiers.
 `Retirer les branches Doom de NetHack` lance

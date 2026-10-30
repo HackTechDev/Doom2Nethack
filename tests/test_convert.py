@@ -323,6 +323,69 @@ class TestTui(unittest.TestCase):
         self.assertEqual(tui.converted_levels(self.out), [])
 
 
+FAKE_NETHACK = r"""
+import os, sys, tty
+tty.setraw(0)
+keys = ""
+def out(text):
+    os.write(1, text.encode())
+def until(end):
+    global keys
+    while not keys.endswith(end):
+        keys += os.read(0, 1).decode()
+out("--More--")
+until("\r")
+out("\x1b[2J\x1b[24;1HNiv:1 $:0 PV:12(12)")
+until("\x16")
+out("\x1b[HTo what level do you want to teleport? ")
+until("3\r")
+out("\x1b[HVous vous matérialisez !--Plus--")
+until("\r")
+until("wizloaddes\r")
+out("\x1b[HCharger quel fichier lua de niveau ? ")
+until("e1m1\r")
+until("\x06")
+open(sys.argv[1], "w").write(keys)
+"""
+
+
+class TestPlay(unittest.TestCase):
+    """Pilotage de NetHack (d2n/play.py) avec un faux NetHack."""
+
+    def test_goto_level(self):
+        from d2n import play
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = os.path.join(tmp, "fake.py")
+            with open(fake, "w") as f:
+                f.write(FAKE_NETHACK)
+            keys = os.path.join(tmp, "keys")
+            null = os.open(os.devnull, os.O_WRONLY)
+            game = play.Game([sys.executable, fake, keys], dict(os.environ),
+                             out=null)
+            try:
+                game.wait(lambda: game.quiet(0.3))
+                game.settle()                   # ferme le --More--
+                self.assertTrue(game.wait(lambda: game.status, 10))
+                self.assertIsNone(play.goto_level(game, "e1m1"))
+                game.write(play.CTRL_F)
+                game.wait(lambda: not game.alive, 10)
+            finally:
+                game.close()
+                os.close(null)
+            with open(keys, newline="") as f:
+                self.assertEqual(f.read(), "\r\x163\r\r#wizloaddes\r"
+                                 "e1m1\r\x06")
+
+    def test_patterns(self):
+        from d2n import play
+        text = play.ANSI.sub("", "\x1b[24;1HNiv:\x1b[1m3\x1b[0m $:0")
+        self.assertTrue(play.STATUS.search(text))
+        self.assertTrue(play.PENDING.search("(fin) "))
+        self.assertTrue(play.PENDING.search("Est-ce correct ? [ynq]"))
+        self.assertFalse(play.PENDING.search("Niv:1 $:0 PV:12(12)"))
+        self.assertEqual(play.PAGE.findall("(1 sur 3)"), [("1", "3")])
+
+
 class TestTables(unittest.TestCase):
     def test_names_exist_in_nethack(self):
         from d2n import tables
