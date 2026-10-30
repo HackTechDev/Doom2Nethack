@@ -137,4 +137,5 @@ Contraintes :
 1. **Prototype** (Python) : lecteur WAD, rasterisation brute, portes,
    escaliers, monstres de base, sortie `.lua` testable par `#wizloaddes`.
 2. Robustesse et connectivité garantie.
-3. Approche topologique et table complète des monstres et objets.
+3. Approche topologique (réalisée : `--mode rooms`, `d2n/rooms.py`) et
+   table complète des monstres et objets.

@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from itertools import permutations
 
 from . import tables
-from .convert import Converter, Options, bbox_union, doom_exit, doom_start
+from .convert import (Converter, Options, bbox_union, converter_class,
+                      doom_exit, doom_start)
 
 MAX_PARTS = 12
 # Taille de case visée par --parts auto (unités Doom ; le joueur fait 32
@@ -167,8 +168,8 @@ def convert_parts(level, n, opts=None):
     parts = plan(level, n, opts)
     results = []
     for i, part in enumerate(parts):
-        conv = Converter(level, opts, part.sectors, part.up_at,
-                         part.down_at, part_name(base, i))
+        conv = converter_class(opts)(level, opts, part.sectors, part.up_at,
+                                     part.down_at, part_name(base, i))
         results.append(conv.run())
     if doom_exit(level) and parts[-1].down_at is None:
         results[-1].warnings.append("la sortie Doom n'est pas dans le "

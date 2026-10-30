@@ -33,7 +33,7 @@ Options :
       --restore       retirer toutes les branches Doom de dungeon.lua et
                       réinstaller nhdat
   -h, --help          afficher cette aide
-  Les autres options (--skill, --hazards, --keep-aspect...) sont passées
+  Les autres options (--mode, --skill, --hazards...) sont passées
   à doom2nethack.py.
 
 Variables d'environnement :
@@ -90,7 +90,7 @@ while [ $# -gt 0 ]; do
     -y|--yes) YES=1 ;;
     --restore) RESTORE=1 ;;
     -h|--help) usage; exit 0 ;;
-    --skill|--hazards|--width|--height|--samples|--coverage)
+    --skill|--hazards|--width|--height|--samples|--coverage|--mode|--rooms)
         ARGS+=("$1" "${2:?}"); shift ;;
     -*) ARGS+=("$1") ;;
     *) POS+=("$1") ;;

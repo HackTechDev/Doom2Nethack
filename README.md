@@ -75,6 +75,7 @@ python3 doom2nethack.py --list doom2.wad           # niveaux du WAD
 python3 doom2nethack.py -p -m MAP01 doom2.wad      # écrit out/map01.lua
 python3 doom2nethack.py -p --keep-aspect -o lvl.lua doom2.wad
 python3 doom2nethack.py -p -n auto -m E1M1 freedoom1.wad  # out/e1m1/
+python3 doom2nethack.py -p --mode rooms -m E1M1 freedoom1.wad  # salles
 ```
 
 Options :
@@ -90,6 +91,8 @@ Options :
 | `--keep-aspect`         | échelle uniforme au lieu d'étirer la carte            |
 | `--samples`             | échantillons par case et par axe (défaut 3)           |
 | `--coverage`            | part d'une case à couvrir pour faire un sol (0.34)    |
+| `--mode`                | `raster` (plan décalqué, défaut) ou `rooms` (salles et couloirs) |
+| `--rooms`               | mode `rooms` : nombre de salles visé (défaut 12)      |
 | `--hazards`             | sols à dégâts : `none` (défaut), `water` ou `lava`    |
 | `--skill`               | difficulté des things : `easy`, `medium` (défaut), `hard` |
 
@@ -107,6 +110,37 @@ Options :
   HACKDIR (parties sauvegardées, `record`, `sysconf`).
 - `NETHACK_SRC`, `HACKDIR` et `OUTDIR` permettent de changer les chemins ;
   les options `--skill`, `--hazards`… sont passées à `doom2nethack.py`.
+
+## Deux modes de conversion
+
+- `raster` (défaut) : une grille de 75 × 19 cases est posée sur le plan
+  Doom ; chaque case est du sol si elle tombe dans un secteur. Fidèle à la
+  forme des pièces, mais les détails sont écrasés par la compression.
+- `rooms` : on garde quelles salles existent et lesquelles communiquent,
+  puis on redessine un niveau à la manière de NetHack (`d2n/rooms.py`) :
+  1. les secteurs sont regroupés en salles : un secteur presque entouré par
+     un autre (flaque, estrade) ou très petit (marche, bande de lumière) est
+     fusionné avec son voisin, puis les salles les plus liées sont
+     fusionnées jusqu'au nombre visé (`--rooms`, 12 par défaut) ;
+  2. les groupes longs et étroits deviennent des couloirs, les secteurs
+     porte des portes : ce sont des passages, pas des salles ;
+  3. chaque salle devient un rectangle placé à la position projetée de son
+     centre Doom, de taille proportionnelle à son emprise, puis les
+     rectangles sont écartés jusqu'à laisser un passage entre eux (moins de
+     salles si elles ne tiennent pas) ;
+  4. les salles reliées dans Doom, directement ou par des couloirs et des
+     portes, sont reliées par des couloirs `#`, avec une porte à chaque
+     bout (`+` pour une porte Doom, ouverture sans porte sinon) ;
+  5. les secteurs inaccessibles depuis le départ (décors vus par une
+     fenêtre, placards à monstres) sont retirés ; les téléporteurs comptent
+     pour l'accessibilité. Une salle accessible mais non reliée est
+     raccordée à la plus proche.
+
+  Le niveau est plus lisible et plus « NetHack », mais la forme des pièces
+  est perdue (un hall en L devient un rectangle). Les things gardent leur
+  position relative dans leur salle.
+
+Les deux modes fonctionnent avec le découpage en plusieurs niveaux.
 
 ## Découpage en plusieurs niveaux
 

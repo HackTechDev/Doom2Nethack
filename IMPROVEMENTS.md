@@ -92,11 +92,18 @@ donjon : la sortie de chaque carte mène au début de la suivante. Limites :
 32 niveaux par donjon (`MAXLEVEL`) et 16 donjons au plus (`MAXDUNGEON`),
 dont 9 déjà utilisés par NetHack.
 
-### Approche topologique
-La piste « salles rectangulaires + couloirs » de `ANALYSE.md` : fusionner
-les secteurs en salles, conserver leurs positions relatives et les relier
-par des couloirs `#`. Le résultat ressemblerait davantage à un niveau
-NetHack classique, au prix de la fidélité au plan Doom.
+### Mode salles et couloirs (`--mode rooms`)
+Réalisé dans `d2n/rooms.py`. Pistes pour aller plus loin :
+- garder la forme des salles : rasteriser chaque salle dans son rectangle
+  (hall en L, pilier), en ne gardant de l'approche topologique que le
+  rapprochement des salles et les couloirs ;
+- suivre le tracé des couloirs Doom (coudes, embranchements) plutôt qu'un
+  plus court chemin ;
+- répartir les portes sur les murs et éviter deux portes voisines ;
+- rendre les seuils de regroupement (`CORRIDOR_WIDTH`, `SMALL_AREA`,
+  `EMBEDDED`) réglables, et les ajuster sur davantage de WAD ;
+- retirer aussi en mode `raster` les secteurs inaccessibles depuis le
+  départ (`doom_reachable()`).
 
 ### Passages perdus entre morceaux
 Seuls les passages de la chaîne sont conservés. Les trous et trappes

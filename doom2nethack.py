@@ -52,6 +52,12 @@ def main(argv=None):
     p.add_argument("--hazards", choices=("none", "water", "lava"),
                    default="none",
                    help="rendu des sols à dégâts (nukage, lave...)")
+    p.add_argument("--mode", choices=("raster", "rooms"), default="raster",
+                   help="raster : plan décalqué case par case (défaut) ; "
+                   "rooms : salles rectangulaires reliées par des couloirs")
+    p.add_argument("--rooms", type=int, default=0,
+                   help="mode rooms : nombre de salles visé par niveau "
+                   "(défaut : automatique, 12 au plus)")
     p.add_argument("--skill", choices=("easy", "medium", "hard"),
                    default="medium",
                    help="difficulté Doom des monstres et objets")
@@ -60,7 +66,7 @@ def main(argv=None):
     if not 3 <= a.width <= MAX_WIDTH or not 3 <= a.height <= MAX_HEIGHT:
         p.error(f"taille maximale {MAX_WIDTH}x{MAX_HEIGHT}")
     opts = Options(a.width, a.height, a.samples, a.coverage, a.keep_aspect,
-                   a.hazards, a.skill)
+                   a.hazards, a.skill, a.mode, a.rooms)
     try:
         wad = Wad(a.wad)
         names = wad.level_names()
@@ -105,6 +111,8 @@ def main(argv=None):
               f"{res.scale[0]:.0f}x{res.scale[1]:.0f} unités par case, "
               f"{len(res.doors)} porte(s), {len(res.monsters)} monstre(s), "
               f"{len(res.objects)} objet(s)", file=log)
+        for i in res.info:
+            print(f"  info : {i}", file=log)
         for w in res.warnings:
             print(f"  attention : {w}", file=log)
     for path in written:

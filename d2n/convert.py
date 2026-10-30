@@ -25,6 +25,8 @@ class Options:
     keep_aspect: bool = False   # échelle uniforme (case 2x plus haute)
     hazards: str = "none"       # none | water | lava
     skill: str = "medium"       # easy | medium | hard
+    mode: str = "raster"        # raster | rooms (salles et couloirs)
+    rooms: int = 0              # mode rooms : nombre de salles visé (0 auto)
 
 
 @dataclass
@@ -39,6 +41,7 @@ class Result:
     objects: list = field(default_factory=list)     # (x, y, classe, nom)
     scale: tuple = (0.0, 0.0)
     warnings: list = field(default_factory=list)
+    info: list = field(default_factory=list)
 
     @property
     def width(self):
@@ -509,6 +512,13 @@ def bbox_union(boxes):
             max(b[2] for b in boxes), max(b[3] for b in boxes))
 
 
+def converter_class(opts):
+    if opts and opts.mode == "rooms":
+        from .rooms import RoomConverter
+        return RoomConverter
+    return Converter
+
+
 def convert(level, opts=None):
-    return Converter(level, opts).run()
+    return converter_class(opts)(level, opts).run()
 

@@ -23,10 +23,15 @@ def reachable(res, start):
         x, y = todo.popleft()
         for c in ((x+1, y), (x-1, y), (x, y+1), (x, y-1)):
             if c not in seen and 0 <= c[1] < res.height and \
-                    0 <= c[0] < res.width and res.grid[c[1]][c[0]] in ".+}":
+                    0 <= c[0] < res.width and res.grid[c[1]][c[0]] in ".+}#":
                 seen.add(c)
                 todo.append(c)
     return seen
+
+
+def walkable(res):
+    return sum(row.count(".") + row.count("+") + row.count("#")
+               for row in res.grid)
 
 
 class TestThreeRooms(unittest.TestCase):
@@ -83,8 +88,43 @@ def check_parts(test, results, n):
     for res in results:
         seen = reachable(res, res.upstair)
         test.assertIn(res.downstair, seen)
-        walkable = sum(row.count(".") + row.count("+") for row in res.grid)
-        test.assertEqual(walkable, len(seen))
+        test.assertEqual(walkable(res), len(seen))
+
+
+class TestRooms(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        path = os.path.join(cls.tmp.name, "t3.wad")
+        make_test_wad.write_wad(path, make_test_wad.build())
+        cls.level = Wad(path).load_level("MAP01")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_three_rooms(self):
+        res = convert(self.level, Options(mode="rooms"))
+        # salles A (avec pilier), B (avec flaque), C ; deux couloirs Doom
+        self.assertEqual(res.info[0].split(",")[:2],
+                         ["3 salle(s)", " 2 couloir(s) Doom"])
+        self.assertTrue(any("#" in row for row in res.grid))
+        self.assertIn("closed", [s for _, _, s in res.doors])
+        seen = reachable(res, res.upstair)
+        self.assertIn(res.downstair, seen)
+        self.assertEqual(walkable(res), len(seen))
+        self.assertEqual(len(res.monsters), 3)
+        self.assertEqual(len(res.objects), 2)
+        # escaliers et things dans des salles, pas dans les couloirs
+        for x, y in (res.upstair, res.downstair):
+            self.assertEqual(res.grid[y][x], ".")
+        for x, y, *_ in res.monsters + res.objects:
+            self.assertEqual(res.grid[y][x], ".")
+
+    def test_rooms_split(self):
+        results = convert_parts(self.level, 2, Options(mode="rooms"))
+        self.assertEqual(len(results), 2)
+        check_parts(self, results, 2)
 
 
 class TestSplit(unittest.TestCase):
@@ -183,9 +223,28 @@ class TestFreedoom(unittest.TestCase):
                     res = convert(wad.load_level(name))
                     seen = reachable(res, res.upstair)
                     self.assertIn(res.downstair, seen)
-                    walkable = sum(row.count(".") + row.count("+")
-                                   for row in res.grid)
-                    self.assertEqual(walkable, len(seen))
+                    self.assertEqual(walkable(res), len(seen))
+
+    def test_rooms_all_levels(self):
+        opts = Options(mode="rooms")
+        for wad_name in ("freedoom1.wad", "freedoom2.wad"):
+            wad = Wad(os.path.join(FREEDOOM, wad_name))
+            for name in wad.level_names():
+                with self.subTest(level=name):
+                    res = convert(wad.load_level(name), opts)
+                    seen = reachable(res, res.upstair)
+                    self.assertIn(res.downstair, seen)
+                    self.assertEqual(walkable(res), len(seen))
+
+    def test_rooms_split_levels(self):
+        opts = Options(mode="rooms")
+        for wad_name, name in (("freedoom1.wad", "E1M1"),
+                               ("freedoom2.wad", "MAP12"),
+                               ("freedoom2.wad", "MAP20")):
+            level = Wad(os.path.join(FREEDOOM, wad_name)).load_level(name)
+            n = auto_parts(level, opts)
+            with self.subTest(level=name, parts=n):
+                check_parts(self, convert_parts(level, n, opts), n)
 
     def test_split_levels(self):
         for wad_name, name in (("freedoom1.wad", "E1M1"),

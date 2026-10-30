@@ -12,6 +12,10 @@ DOOR_LINEDEFS = {
 # Fins de niveau (interrupteurs, lignes à franchir).
 EXIT_LINEDEFS = {11, 51, 52, 124, 197, 198}
 
+# Téléporteurs empruntés par le joueur (125 et 126 : monstres seulement) ;
+# la destination est dans le secteur portant le tag du linedef.
+TELEPORT_LINEDEFS = {39, 97}
+
 # Linedef infranchissable (flag ML_BLOCKING).
 ML_BLOCKING = 0x0001
 
