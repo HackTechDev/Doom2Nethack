@@ -5,11 +5,14 @@ import re
 import struct
 from dataclasses import dataclass, field
 
+# Répertoire qui contient le projet.
+_PARENT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
 # Répertoire des WAD : un WAD introuvable depuis le répertoire courant y est
 # cherché (défaut : ../Doom/Wad, à côté du projet).
-WAD_DIR = os.environ.get("WAD_DIR", os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "Doom", "Wad"))
+WAD_DIR = os.environ.get("WAD_DIR", os.path.join(_PARENT, "Doom", "Wad"))
+# Éditeur Yadex, dont le test.wad sert aux tests (défaut : ../YadexEditor).
+YADEX_DIR = os.environ.get("YADEX_DIR", os.path.join(_PARENT, "YadexEditor"))
 
 # Lumps qui suivent le marqueur d'un niveau (MAP01, E1M1...).
 LEVEL_LUMPS = {

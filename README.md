@@ -323,3 +323,12 @@ directement dans la branche.
 python3 -m unittest discover -s tests
 python3 tests/make_test_wad.py test3rooms.wad    # WAD de test à 3 salles
 ```
+
+Certains tests utilisent des fichiers extérieurs au projet, et sont sautés
+s'ils sont absents :
+
+| Variable      | Défaut (à côté du projet) | Utilisé par                     |
+|---------------|---------------------------|---------------------------------|
+| `WAD_DIR`     | `../Doom/Wad`             | Freedoom (`freedoom-0.13.0/`)   |
+| `NETHACK_SRC` | `../NetHack-5.0.0`        | noms des monstres et objets, `dungeon.lua`, menu |
+| `YADEX_DIR`   | `../YadexEditor`          | `test.wad` de Yadex             |

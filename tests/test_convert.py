@@ -12,11 +12,10 @@ from d2n.convert import Options, convert          # noqa: E402
 from d2n.lua_out import dungeon_snippet, to_lua   # noqa: E402
 from d2n.split import auto_parts, convert_parts, plan  # noqa: E402
 from d2n import tui                               # noqa: E402
-from d2n.wad import WAD_DIR, Wad, find_wad       # noqa: E402
+from d2n.wad import WAD_DIR, YADEX_DIR, Wad, find_wad  # noqa: E402
 import make_test_wad                              # noqa: E402
 
-YADEX_WAD = os.path.join(os.path.dirname(__file__), "..", "..",
-                         "YadexEditor", "test.wad")
+YADEX_WAD = os.path.join(YADEX_DIR, "test.wad")
 
 
 def reachable(res, start):

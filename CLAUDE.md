@@ -33,13 +33,16 @@ Les WAD sont dans le répertoire des WAD (`WAD_DIR`, défaut
 `../Doom/Wad` : `/home/util01/JEUX/NETHACK/Doom/Wad`) ; un WAD introuvable
 depuis le répertoire courant y est cherché (`find_wad()`, `d2n/wad.py`).
 Les tests Freedoom (`TestFreedoom`) supposent Freedoom dans
-`$WAD_DIR/freedoom-0.13.0` ; ils sont sautés sinon. `tests/make_test_wad.py`
+`$WAD_DIR/freedoom-0.13.0` ; ils sont sautés sinon. `TestYadex` lit le
+`test.wad` de Yadex dans `YADEX_DIR` (défaut `../YadexEditor` :
+`/home/util01/JEUX/NETHACK/YadexEditor`). `tests/make_test_wad.py`
 construit le petit WAD de test (3 salles, la dernière sombre).
 
 ## Architecture (`d2n/`)
 
 - `wad.py` : lecture des WAD (lumps VERTEXES, LINEDEFS, SIDEDEFS, SECTORS,
-  THINGS), répertoire des WAD (`WAD_DIR`, `find_wad()`).
+  THINGS), répertoire des WAD (`WAD_DIR`, `find_wad()`) et de Yadex
+  (`YADEX_DIR`).
 - `tables.py` : correspondances Doom → NetHack (portes, sorties,
   téléporteurs, monstres, objets, symboles, noms Doom).
 - `convert.py` : `Options` (dataclass passée **par position** par
