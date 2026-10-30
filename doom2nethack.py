@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
-"""Convertit un niveau Doom (WAD) en niveau spécial NetHack (Lua)."""
+"""Convertit un niveau Doom (WAD) en niveau(x) spécial(aux) NetHack (Lua)."""
 
 import argparse
 import os
 import sys
 
 from d2n.convert import MAX_HEIGHT, MAX_WIDTH, Options, convert
-from d2n.lua_out import to_lua
+from d2n.lua_out import dungeon_snippet, to_lua
+from d2n.split import MAX_PARTS, auto_parts, convert_parts
 from d2n.wad import Wad, WadError
+
+
+def parts_arg(value):
+    if value == "auto":
+        return value
+    n = int(value)
+    if not 1 <= n <= MAX_PARTS:
+        raise argparse.ArgumentTypeError(f"entre 1 et {MAX_PARTS}")
+    return n
 
 
 def main(argv=None):
@@ -15,8 +25,14 @@ def main(argv=None):
     p.add_argument("wad", help="fichier WAD (IWAD ou PWAD)")
     p.add_argument("-m", "--map", help="niveau à convertir (MAP01, E1M1...)"
                    " ; par défaut le premier")
-    p.add_argument("-o", "--output", help="fichier .lua de sortie "
-                   "(défaut : <niveau>.lua ; '-' pour la sortie standard)")
+    p.add_argument("-o", "--output", help="fichier .lua de sortie pour un "
+                   "seul niveau (défaut : <niveau>.lua ; '-' pour la sortie "
+                   "standard)")
+    p.add_argument("-n", "--parts", type=parts_arg, default=1,
+                   help="découper en N niveaux NetHack reliés par des "
+                   f"escaliers (1 à {MAX_PARTS}, ou 'auto')")
+    p.add_argument("-d", "--outdir", default=".",
+                   help="répertoire de sortie pour un niveau découpé")
     p.add_argument("-l", "--list", action="store_true",
                    help="lister les niveaux du WAD")
     p.add_argument("-p", "--preview", action="store_true",
@@ -39,6 +55,8 @@ def main(argv=None):
 
     if not 3 <= a.width <= MAX_WIDTH or not 3 <= a.height <= MAX_HEIGHT:
         p.error(f"taille maximale {MAX_WIDTH}x{MAX_HEIGHT}")
+    opts = Options(a.width, a.height, a.samples, a.coverage, a.keep_aspect,
+                   a.hazards, a.skill)
     try:
         wad = Wad(a.wad)
         names = wad.level_names()
@@ -48,33 +66,60 @@ def main(argv=None):
         if not names:
             raise WadError(f"{a.wad} : aucun niveau")
         level = wad.load_level(a.map or names[0])
-        res = convert(level, Options(a.width, a.height, a.samples,
-                                     a.coverage, a.keep_aspect, a.hazards,
-                                     a.skill))
+        n = auto_parts(level, opts) if a.parts == "auto" else a.parts
+        results = [convert(level, opts)] if n == 1 else \
+            convert_parts(level, n, opts)
     except (WadError, ValueError, OSError) as e:
         print(f"doom2nethack : {e}", file=sys.stderr)
         return 1
 
-    lua = to_lua(res, os.path.basename(a.wad))
-    out = a.output or f"{res.name.lower()}.lua"
-    if out == "-":
-        sys.stdout.write(lua)
+    source = os.path.basename(a.wad)
+    log = sys.stderr if a.output == "-" else sys.stdout
+    written = []
+    if n == 1:
+        out = a.output or f"{results[0].name.lower()}.lua"
+        lua = to_lua(results[0], source)
+        if out == "-":
+            sys.stdout.write(lua)
+        else:
+            written.append(_write(out, lua))
     else:
-        with open(out, "w") as f:
-            f.write(lua)
+        os.makedirs(a.outdir, exist_ok=True)
+        for i, res in enumerate(results):
+            written.append(_write(os.path.join(a.outdir, f"{res.name}.lua"),
+                                  to_lua(res, source, branch=i == 0)))
+        snippet = dungeon_snippet(f"Doom {level.name}",
+                                  [r.name for r in results])
+        written.append(_write(os.path.join(
+            a.outdir, f"{level.name.lower()}-dungeon.lua"), snippet))
 
-    log = sys.stderr if out == "-" else sys.stdout
-    if a.preview:
-        print("\n".join(res.grid), file=log)
-    print(f"{res.name} : carte {res.width}x{res.height}, "
-          f"{res.scale[0]:.0f}x{res.scale[1]:.0f} unités par case, "
-          f"{len(res.doors)} porte(s), {len(res.monsters)} monstre(s), "
-          f"{len(res.objects)} objet(s)", file=log)
-    for w in res.warnings:
-        print(f"  attention : {w}", file=log)
-    if out != "-":
-        print(f"écrit : {out}", file=log)
+    for res in results:
+        if a.preview:
+            print("\n".join(_with_stairs(res)), file=log)
+        print(f"{res.name} : carte {res.width}x{res.height}, "
+              f"{res.scale[0]:.0f}x{res.scale[1]:.0f} unités par case, "
+              f"{len(res.doors)} porte(s), {len(res.monsters)} monstre(s), "
+              f"{len(res.objects)} objet(s)", file=log)
+        for w in res.warnings:
+            print(f"  attention : {w}", file=log)
+    for path in written:
+        print(f"écrit : {path}", file=log)
     return 0
+
+
+def _write(path, text):
+    with open(path, "w") as f:
+        f.write(text)
+    return path
+
+
+def _with_stairs(res):
+    """Carte avec les escaliers, pour l'aperçu."""
+    grid = [list(row) for row in res.grid]
+    for c, pos in (("<", res.upstair), (">", res.downstair)):
+        if pos:
+            grid[pos[1]][pos[0]] = c
+    return ["".join(row) for row in grid]
 
 
 if __name__ == "__main__":

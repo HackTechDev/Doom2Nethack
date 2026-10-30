@@ -48,10 +48,45 @@ class Result:
         return len(self.grid)
 
 
+# Position d'escalier déduite du niveau Doom (départ joueur / sortie).
+AUTO = "auto"
+
+
+def doom_start(level):
+    """Départ du joueur : (x, y, None), ou None."""
+    for t in level.things:
+        if t.type == tables.PLAYER_START:
+            return (t.x, t.y, None)
+    return None
+
+
+def doom_exit(level):
+    """Milieu de la première ligne de sortie : (x, y, secteur), ou None."""
+    for ld in level.linedefs:
+        if ld.special in tables.EXIT_LINEDEFS:
+            a, b = level.vertices[ld.v1], level.vertices[ld.v2]
+            return ((a.x + b.x) / 2, (a.y + b.y) / 2,
+                    level.side_sector(ld.right))
+    return None
+
+
 class Converter:
-    def __init__(self, level, opts=None):
+    """Convertit un niveau Doom, ou seulement les secteurs `sectors`.
+
+    `up_at` / `down_at` placent les escaliers : AUTO (départ joueur /
+    sortie Doom), None (choix automatique sur la grille) ou un point Doom
+    (x, y, secteur préféré ou None).
+    """
+
+    def __init__(self, level, opts=None, sectors=None, up_at=AUTO,
+                 down_at=AUTO, name=None):
         self.lvl = level
         self.opts = opts or Options()
+        self.sectors = sectors
+        self.up_at = doom_start(level) if up_at == AUTO else up_at
+        self.down_at = doom_exit(level) if down_at == AUTO else down_at
+        self.auto_stairs = (up_at == AUTO, down_at == AUTO)
+        self.name = name or level.name
         self.warnings = []
 
     # --- géométrie -------------------------------------------------------
@@ -77,7 +112,7 @@ class Converter:
         self.edges = edges
         self.sbbox = {}
         for s, segs in edges.items():
-            if segs:
+            if segs and (self.sectors is None or s in self.sectors):
                 xs = [c for e in segs for c in (e[0], e[2])]
                 ys = [c for e in segs for c in (e[1], e[3])]
                 self.sbbox[s] = (min(xs), min(ys), max(xs), max(ys))
@@ -102,15 +137,12 @@ class Converter:
 
     def _setup_transform(self):
         o = self.opts
-        used = {i for ld in self.lvl.linedefs for i in (ld.v1, ld.v2)
-                if i < len(self.lvl.vertices)}
-        if not used:
-            raise ValueError(f"{self.lvl.name} : aucun linedef")
-        xs = [self.lvl.vertices[i].x for i in used]
-        ys = [self.lvl.vertices[i].y for i in used]
-        self.minx, self.maxy = min(xs), max(ys)
-        spanx = max(max(xs) - self.minx, 1)
-        spany = max(self.maxy - min(ys), 1)
+        if not self.sbbox:
+            raise ValueError(f"{self.name} : aucun secteur")
+        x0, y0, x1, y1 = bbox_union(self.sbbox.values())
+        self.minx, self.maxy = x0, y1
+        spanx = max(x1 - x0, 1)
+        spany = max(y1 - y0, 1)
         # une rangée de murs tout autour
         iw, ih = o.width - 2, o.height - 2
         sx, sy = spanx / iw, spany / ih
@@ -294,7 +326,7 @@ class Converter:
         for ld in self.lvl.linedefs:
             state = tables.DOOR_LINEDEFS.get(ld.special)
             ds = self.lvl.side_sector(ld.left)
-            if state and ds is not None:
+            if state and ds in self.sbbox:
                 door_secs.setdefault(ds, (state, []))[1].append(ld)
         doors, placed = [], set()
         for ds, (state, lines) in sorted(door_secs.items()):
@@ -389,7 +421,7 @@ class Converter:
                     horiz = wall(x - 1, y) or wall(x + 1, y)
                     grid[y][x] = "|" if vert and not horiz else "-"
 
-        res = Result(self.lvl.name, ["".join(r) for r in grid], doors,
+        res = Result(self.name, ["".join(r) for r in grid], doors,
                      scale=(self.sx, self.sy))
         self._place_things(res, door_xy)
         res.warnings = self.warnings
@@ -414,32 +446,32 @@ class Converter:
                 busy.add(c)
             return c
 
-        starts = [t for t in self.lvl.things
-                  if t.type == tables.PLAYER_START]
-        if starts:
-            res.upstair = spot(*self.to_cell(starts[0].x, starts[0].y))
-        else:
-            self.warnings.append("pas de départ joueur (thing 1)")
-            res.upstair = spot(1, 1)
-
-        exits = [ld for ld in self.lvl.linedefs
-                 if ld.special in tables.EXIT_LINEDEFS]
-        if exits:
-            ld = exits[0]
-            s = self.lvl.side_sector(ld.right)
+        def at(point):
+            x, y, s = point
             prefer = self.cells_of(s) if s is not None else None
-            res.downstair = spot(*self._midcell(ld), prefer=prefer)
+            return spot(*self.to_cell(x, y), prefer=prefer)
+
+        if self.up_at:
+            res.upstair = at(self.up_at)
         else:
-            self.warnings.append("pas de sortie : escalier descendant "
-                                 "placé au plus loin du départ")
+            if self.auto_stairs[0]:
+                self.warnings.append("pas de départ joueur (thing 1)")
+            res.upstair = spot(1, 1)
+        if self.down_at:
+            res.downstair = at(self.down_at)
+        else:
+            if self.auto_stairs[1]:
+                self.warnings.append("pas de sortie : escalier descendant "
+                                     "placé au plus loin du départ")
             res.downstair = self._farthest(res.upstair, busy)
             busy.add(res.downstair)
 
         skipped = Counter()
         for t in self.lvl.things:
             if t.flags & tables.MTF_MULTI or t.type == tables.PLAYER_START \
-                    or not t.flags & tables.SKILL_FLAGS[self.opts.skill]:
-                continue
+                    or not t.flags & tables.SKILL_FLAGS[self.opts.skill] \
+                    or self.sector_at(t.x, t.y) is None:
+                continue        # hors de la zone convertie
             if t.type in tables.MONSTERS:
                 c = spot(*self.to_cell(t.x, t.y))
                 if c:
@@ -466,6 +498,12 @@ class Converter:
                     todo.append(c)
         cand = [c for c in dist if c not in busy]
         return max(cand, key=dist.get) if cand else start
+
+
+def bbox_union(boxes):
+    boxes = list(boxes)
+    return (min(b[0] for b in boxes), min(b[1] for b in boxes),
+            max(b[2] for b in boxes), max(b[3] for b in boxes))
 
 
 def convert(level, opts=None):

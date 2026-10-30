@@ -12,6 +12,7 @@ Le prototype est en Python 3, sans dépendance externe.
 python3 doom2nethack.py --list doom2.wad           # niveaux du WAD
 python3 doom2nethack.py -p -m MAP01 doom2.wad      # écrit map01.lua
 python3 doom2nethack.py -p --keep-aspect -o lvl.lua doom2.wad
+python3 doom2nethack.py -p -n auto -m E1M1 -d out freedoom1.wad  # découpage
 ```
 
 Options :
@@ -20,7 +21,9 @@ Options :
 |-------------------------|-------------------------------------------------------|
 | `-m`, `--map`           | niveau à convertir (défaut : le premier)              |
 | `-o`, `--output`        | fichier de sortie (`-` : sortie standard)             |
-| `-p`, `--preview`       | affiche la carte obtenue                              |
+| `-n`, `--parts`         | découpe en N niveaux reliés par des escaliers (`auto`) |
+| `-d`, `--outdir`        | répertoire de sortie d'un niveau découpé (défaut `.`) |
+| `-p`, `--preview`       | affiche la carte obtenue (avec `<` et `>`)            |
 | `--width`, `--height`   | taille de la carte (max 75 × 19)                      |
 | `--keep-aspect`         | échelle uniforme au lieu d'étirer la carte            |
 | `--samples`             | échantillons par case et par axe (défaut 3)           |
@@ -37,6 +40,32 @@ Options :
 2. Lancer `nethack -D` (mode wizard ; l'utilisateur doit figurer dans
    `WIZARDS` du fichier `sysconf`).
 3. Utiliser `#wizloaddes`, puis donner le nom du fichier (ex. `map01.lua`).
+
+## Découpage en plusieurs niveaux
+
+Un grand niveau Doom comprimé sur 75 × 19 cases perd ses détails. Avec
+`--parts N` (ou `auto`, qui vise des cases d'environ 48 × 96 unités Doom,
+12 niveaux au plus), il est découpé en une branche de N niveaux NetHack :
+
+- les secteurs sont répartis par bissections successives le long de l'axe
+  le plus comprimé ;
+- les morceaux forment une chaîne (un niveau NetHack n'a qu'un escalier
+  montant et un descendant) qui commence au départ du joueur et enchaîne de
+  préférence des morceaux voisins dans Doom ;
+- entre deux morceaux voisins, l'escalier descendant de l'un et l'escalier
+  montant du suivant sont placés de part et d'autre du plus large passage
+  qui les relie dans Doom ;
+- le premier niveau reçoit l'escalier de branche (retour vers le donjon
+  principal) au départ du joueur ; l'escalier descendant du dernier niveau
+  est ignoré par NetHack (fond de la branche).
+
+Sont produits `<niveau>a.lua`, `<niveau>b.lua`… et `<niveau>-dungeon.lua`,
+qui explique comment déclarer la branche dans `dat/dungeon.lua`. Les
+passages entre morceaux autres que la chaîne sont perdus, et la sortie Doom
+peut ne pas tomber dans le dernier morceau (avertissement).
+
+En mode wizard, `^V` (téléportation de niveau) permet ensuite d'aller
+directement dans la branche.
 
 ## Ce que fait le prototype
 
