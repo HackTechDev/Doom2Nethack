@@ -130,6 +130,24 @@ class TestSplit(unittest.TestCase):
         self.assertIn('{ name = "map01b", base = 2 }', snippet)
 
 
+NETHACK = os.path.join(os.path.dirname(__file__), "..", "..",
+                       "Nethack500_Lubuntu2604", "include")
+
+
+@unittest.skipUnless(os.path.isdir(NETHACK), "sources NetHack absentes")
+class TestTables(unittest.TestCase):
+    def test_names_exist_in_nethack(self):
+        from d2n import tables
+        with open(os.path.join(NETHACK, "monsters.h")) as f:
+            monsters = f.read()
+        with open(os.path.join(NETHACK, "objects.h")) as f:
+            objects = f.read()
+        for name, _ in tables.MONSTERS.values():
+            self.assertIn(f'MON(NAM("{name}")', monsters)
+        for _, name in tables.OBJECTS.values():
+            self.assertIn(f'("{name}"', objects)
+
+
 FREEDOOM = os.path.join(os.path.dirname(__file__), "..", "..",
                         "freedoom-0.13.0")
 

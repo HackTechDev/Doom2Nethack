@@ -34,7 +34,8 @@ class Result:
     doors: list = field(default_factory=list)       # (x, y, état)
     upstair: tuple = None
     downstair: tuple = None
-    monsters: list = field(default_factory=list)    # (x, y, nom)
+    # (x, y, nom, invisible, endormi)
+    monsters: list = field(default_factory=list)
     objects: list = field(default_factory=list)     # (x, y, classe, nom)
     scale: tuple = (0.0, 0.0)
     warnings: list = field(default_factory=list)
@@ -475,7 +476,9 @@ class Converter:
             if t.type in tables.MONSTERS:
                 c = spot(*self.to_cell(t.x, t.y))
                 if c:
-                    res.monsters.append((*c, tables.MONSTERS[t.type]))
+                    name, invis = tables.MONSTERS[t.type]
+                    res.monsters.append((*c, name, invis,
+                                         bool(t.flags & tables.MTF_AMBUSH)))
             elif t.type in tables.OBJECTS:
                 c = spot(*self.to_cell(t.x, t.y))
                 if c:

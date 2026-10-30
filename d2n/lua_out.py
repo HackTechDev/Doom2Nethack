@@ -32,8 +32,13 @@ def to_lua(res, source="", branch=False):
                    f'{res.downstair[1]:02d})')
     for x, y, state in res.doors:
         out.append(f'des.door("{state}", {x:02d},{y:02d})')
-    for x, y, name in res.monsters:
-        out.append(f'des.monster("{name}", {x:02d}, {y:02d})')
+    for x, y, name, invis, asleep in res.monsters:
+        # toujours hostile : par défaut NetHack tire au hasard selon
+        # l'alignement du héros (lspo_monster())
+        extra = "".join([", invisible = 1" if invis else "",
+                         ", asleep = 1" if asleep else ""])
+        out.append(f'des.monster({{ id = "{name}", x = {x:02d}, '
+                   f'y = {y:02d}, peaceful = 0{extra} }})')
     for x, y, cls, name in res.objects:
         out.append(f'des.object({{ id = "{name}", class = "{cls}", '
                    f'x = {x:02d}, y = {y:02d} }})')
