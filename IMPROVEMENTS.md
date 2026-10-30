@@ -127,8 +127,8 @@ installation, suppression, état dans NetHack, lancement de NetHack sur le
 niveau), aperçu en couleurs avec description de la case sous le curseur
 (monstre ou objet NetHack et son origine Doom), comparaison côte à côte de deux conversions
 d'une carte, retrait des branches Doom (`--restore`), WAD récents et
-saisie d'un chemin avec complétion. Pistes pour aller plus loin :
-- garder les options de conversion d'une session à l'autre ;
+saisie d'un chemin avec complétion, options gardées d'une session à
+l'autre. Pistes pour aller plus loin :
 - comparer deux conversions enregistrées (deux WAD, ou niveau simple et
   branche d'une même carte) ;
 

@@ -92,7 +92,10 @@ couleurs, elle se rabat sur le gras et la vidéo inverse. Il affiche le fichier 
   difficulté, sols à dégâts, seuil de lumière, nombre de salles visé,
   largeur et hauteur de la carte, échelle uniforme et couverture. Les plus
   courantes ont un raccourci : `m` mode (`raster`/`rooms`), `n` découpage
-  (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts. `c`
+  (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts. Les
+  options sont gardées d'une session à l'autre (`out/.options.json`) ;
+  `Valeurs par défaut`, en bas de l'écran des options, les réinitialise.
+  `c`
   compare la conversion enregistrée de la carte (A) à une conversion
   avec les options actuelles (B), non enregistrée : côte à côte si le
   terminal fait au moins 160 colonnes, sinon l'une après l'autre

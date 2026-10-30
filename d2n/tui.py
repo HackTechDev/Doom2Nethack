@@ -42,6 +42,7 @@ NETHACK_SRC = os.environ.get("NETHACK_SRC",
 DUNGEON_LUA = os.path.join(NETHACK_SRC, "dat", "dungeon.lua")
 META = "doom2nethack.json"
 RECENT_WADS = os.path.join(OUT_DIR, ".recent-wads.json")
+OPTIONS_FILE = os.path.join(OUT_DIR, ".options.json")
 LAST_WAD = os.path.join(OUT_DIR, ".last-wad")       # ancien format
 MAX_RECENT = 10
 
@@ -189,6 +190,43 @@ def parse_option(spec, text):
         raise ValueError(f"valeur invalide : entre {lo} et {hi}"
                          + (" ou auto" if kind == "parts" else ""))
     return str(value) if kind == "parts" else value
+
+
+def load_options(path=OPTIONS_FILE):
+    """Options de conversion gardées de la session précédente ; une valeur
+    absente, inconnue ou invalide est remplacée par la valeur par
+    défaut."""
+    opts = dict(DEFAULT_OPTS)
+    try:
+        with open(path) as f:
+            saved = json.load(f)
+    except (OSError, ValueError):
+        return opts
+    if not isinstance(saved, dict):
+        return opts
+    for key, _, spec, _ in OPTIONS:
+        if key not in saved:
+            continue
+        value = saved[key]
+        if isinstance(spec, list):
+            if any(value == v and type(value) is type(v) for v in spec):
+                opts[key] = value
+        elif isinstance(value, (str, int, float)) and \
+                not isinstance(value, bool):
+            try:
+                opts[key] = parse_option(spec, str(value))
+            except ValueError:
+                pass
+    return opts
+
+
+def save_options(opts, path=OPTIONS_FILE):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(opts, f, indent=2)
+    except OSError:
+        pass                    # les options restent valables pour la session
 
 
 def option_text(key, value):
@@ -587,7 +625,7 @@ class App:
     def __init__(self, scr, wad=None):
         self.scr = scr
         self.wad = wad
-        self.opts = dict(DEFAULT_OPTS)
+        self.opts = load_options()
         self.jobs = Jobs()
         self.seen = 0               # dernière version de self.jobs affichée
         cursor_visible(0)
@@ -918,23 +956,30 @@ class App:
             key, sel = self.menu("options de conversion", rows, sel,
                                  "Entrée changer   q retour",
                                  info=[[("En jaune : ", t["accent"]),
-                                        ("valeur modifiée", t["dim"])]])
+                                        ("valeur modifiée", t["dim"]),
+                                        ("   · options gardées pour les "
+                                         "prochaines sessions dans ",
+                                         t["dim"]),
+                                        (rel(OPTIONS_FILE), t["dim"])]])
             if key == "q":
                 return
             if sel >= len(OPTIONS):
                 self.opts = dict(DEFAULT_OPTS)
-                continue
-            k, label, spec, _ = OPTIONS[sel]
-            if isinstance(spec, list):
-                i = spec.index(self.opts[k])
-                self.opts[k] = spec[(i + 1) % len(spec)]
-                continue
-            text = self.prompt(f"{label} :", str(self.opts[k]))
-            if text is not None:
-                try:
-                    self.opts[k] = parse_option(spec, text)
-                except ValueError as e:
-                    self.message(str(e))
+            else:
+                k, label, spec, _ = OPTIONS[sel]
+                if isinstance(spec, list):
+                    i = spec.index(self.opts[k])
+                    self.opts[k] = spec[(i + 1) % len(spec)]
+                else:
+                    text = self.prompt(f"{label} :", str(self.opts[k]))
+                    if text is None:
+                        continue
+                    try:
+                        self.opts[k] = parse_option(spec, text)
+                    except ValueError as e:
+                        self.message(str(e))
+                        continue
+            save_options(self.opts)
 
     def prompt(self, label, value="", complete=None):
         """Saisie d'une ligne dans la barre du bas ; None si Échap.
@@ -1033,6 +1078,7 @@ class App:
                 i = values.index(self.opts[opt]) \
                     if self.opts[opt] in values else -1
                 self.opts[opt] = values[(i + 1) % len(values)]
+                save_options(self.opts)
             else:
                 todo = [n for n in names if n in marked] or [names[sel]]
                 if self.convert(todo):

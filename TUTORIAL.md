@@ -148,7 +148,9 @@ Les autres options s'ouvrent avec `o` : difficulté (monstres présents en
 easy, medium ou hard), sols à dégâts (nukage changée en eau ou en lave),
 seuil de lumière des zones sombres, taille de la carte, etc. Les plus
 courantes ont un raccourci : `m` mode, `n` découpage, `s` difficulté,
-`h` sols.
+`h` sols. Le menu garde vos options pour la prochaine fois : pensez à
+revenir aux valeurs par défaut (`o`, puis **Valeurs par défaut**) si vous
+ne voulez plus convertir en mode rooms.
 
 ## 6. Un grand niveau en plusieurs niveaux NetHack
 

@@ -383,6 +383,25 @@ class TestTui(unittest.TestCase):
         self.assertEqual(move(tui.curses.KEY_SRIGHT, (0, 0), view), (4, 0))
         self.assertIsNone(move("p", (0, 0), view))
 
+    def test_saved_options(self):
+        import json
+        path = os.path.join(self.out, "options.json")
+        self.assertEqual(tui.load_options(path), tui.DEFAULT_OPTS)
+        opts = dict(tui.DEFAULT_OPTS, mode="rooms", parts="auto", dark=100,
+                    keep_aspect=True, coverage=0.5)
+        tui.save_options(opts, path)
+        self.assertEqual(tui.load_options(path), opts)
+        # valeurs invalides ou inconnues : valeur par défaut
+        with open(path, "w") as f:
+            json.dump({"mode": "3d", "parts": "99", "width": 500,
+                       "keep_aspect": 1, "dark": "abc", "skill": "hard",
+                       "inconnue": 3}, f)
+        self.assertEqual(tui.load_options(path),
+                         dict(tui.DEFAULT_OPTS, skill="hard"))
+        with open(path, "w") as f:
+            f.write("[1, 2")
+        self.assertEqual(tui.load_options(path), tui.DEFAULT_OPTS)
+
     def test_bad_map(self):
         ok, lines = tui.run_conversion(self.wad, "E9M9",
                                        dict(tui.DEFAULT_OPTS), self.out)
