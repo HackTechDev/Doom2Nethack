@@ -32,11 +32,13 @@ morceaux seraient des groupes de salles cohérents, avec un escalier au
 niveau d'une vraie porte.
 
 ### Difficulté selon la profondeur réelle
-La table des monstres est fixe. Une branche de 12 niveaux (MAP20) va de la
-profondeur 3 à la profondeur 15 : les derniers morceaux sont trop faciles.
-On pourrait définir plusieurs paliers par monstre Doom (par exemple zombie
-humain → zombie ettin → zombie géant) et choisir selon la profondeur de
-chaque morceau, connue d'après `dungeon.lua`.
+La table des monstres est calibrée pour l'ensemble des profondeurs 3 à 16
+(`MONSTERS` dans `d2n/tables.py`) : un monstre Doom donne toujours le même
+monstre NetHack, quel que soit le niveau. Or une branche de 12 niveaux
+(MAP20) va de la profondeur 3 à la profondeur 15 : les derniers morceaux
+sont trop faciles. On pourrait définir plusieurs paliers par monstre Doom
+(par exemple zombie humain → zombie ettin → zombie géant) et choisir selon
+la profondeur de chaque morceau, connue d'après `dungeon.lua`.
 
 ## Priorité moyenne
 
@@ -128,9 +130,8 @@ niveau), aperçu en couleurs avec description de la case sous le curseur
 (monstre ou objet NetHack et son origine Doom), comparaison côte à côte de deux conversions
 d'une carte, retrait des branches Doom (`--restore`), WAD récents et
 saisie d'un chemin avec complétion, options gardées d'une session à
-l'autre. Pistes pour aller plus loin :
-- comparer deux conversions enregistrées (deux WAD, ou niveau simple et
-  branche d'une même carte) ;
+l'autre. Piste pour aller plus loin : comparer deux conversions
+enregistrées (deux WAD, ou niveau simple et branche d'une même carte).
 
 ### Aperçu graphique
 Un aperçu HTML superposant le plan Doom (linedefs) et la grille NetHack

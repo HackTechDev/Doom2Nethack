@@ -89,9 +89,10 @@ lance `menuDoom2Nethack.py` (qu'on peut aussi lancer directement). Comme
 `NETHACK`. Sans argument, le menu reprend le dernier WAD utilisé (ou propose d'en
 choisir un). L'interface est en couleurs (8 couleurs standard, thème
 dans `App.init_theme()` de `d2n/tui.py`) ; dans un terminal sans
-couleurs, elle se rabat sur le gras et la vidéo inverse. Il affiche le fichier WAD utilisé et offre deux menus :
+couleurs, elle se rabat sur le gras et la vidéo inverse. Il affiche le
+fichier WAD utilisé et offre deux menus principaux :
 
-- **Convertir une carte du WAD** : liste les cartes du WAD ; `Entrée`
+- **Convertir des cartes** : liste les cartes du WAD ; `Entrée`
   convertit la carte choisie dans `out/<WAD sans .wad>/` (par exemple
   `out/freedoom1/e1m1.lua`, ou `out/freedoom1/e1m1/` pour une branche) et
   affiche le résultat. Les cartes déjà converties sont marquées. `Espace`
@@ -161,12 +162,13 @@ sauvegarder), on revient au menu. Hors du menu :
 `D2N_PLAY_LOG=fichier` enregistre les touches envoyées, pour le
 débogage.
 
-`Choisir un autre fichier WAD` ouvre un explorateur de fichiers. Il
+`Journal des conversions` ouvre le journal (comme `l`).
+`Choisir un autre WAD` ouvre un explorateur de fichiers. Il
 liste d'abord les 10 derniers WAD utilisés (`x` en retire un de la
 liste, gardée dans `out/.recent-wads.json`), puis le contenu du
 répertoire courant. `/` permet de saisir un chemin (absolu, relatif au
 répertoire affiché ou commençant par `~`), avec complétion par `Tab`.
-`Retirer les branches Doom de NetHack` lance
+`Retirer les branches Doom` lance
 `convertDoom2Nethack.sh --restore` (le script demande confirmation).
 Navigation : flèches, `Page↑`/`Page↓`, `Entrée`, `q` ou `Échap` pour
 revenir.
@@ -309,6 +311,6 @@ directement dans la branche.
 ## Tests
 
 ```sh
-python3 -m unittest discover tests
+python3 -m unittest discover -s tests
 python3 tests/make_test_wad.py test3rooms.wad    # WAD de test à 3 salles
 ```

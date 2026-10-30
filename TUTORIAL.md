@@ -17,9 +17,9 @@ Il vous faut :
 - **le mode wizard autorisé** pour votre compte : votre nom d'utilisateur
   sur la ligne `WIZARDS=` de
   `~/nh/install/games/lib/nethackdir/sysconf` ;
-- **un fichier WAD** : ce tutoriel utilise Freedoom, dans
-  `/home/sgond/app/freedoom-0.13.0` (`freedoom1.wad` : épisodes E1 à E4,
-  `freedoom2.wad` : cartes MAP01 à MAP32).
+- **un fichier WAD** : ce tutoriel utilise Freedoom 0.13.0, placé à côté
+  du répertoire du projet, dans `../freedoom-0.13.0` (`freedoom1.wad` :
+  épisodes E1 à E4, `freedoom2.wad` : cartes MAP01 à MAP32).
 
 Pour les branches (étape 6), il faut aussi les sources de NetHack
 configurées, par défaut dans `/home/sgond/app/Nethack500_Lubuntu2604`.
