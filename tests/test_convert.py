@@ -198,6 +198,60 @@ class TestSplit(unittest.TestCase):
         self.assertIn('{ name = "map01b", base = 2 }', snippet)
 
 
+class TestTheme(unittest.TestCase):
+    """Thèmes, univers et arguments du menu (repris du lanceur)."""
+
+    def test_game_language(self):
+        with tempfile.TemporaryDirectory() as d:
+            rc = os.path.join(d, "nethackrc")
+            with open(rc, "w") as f:
+                f.write("# OPTIONS=language:en\nOPTIONS=color,language:fr\n"
+                        "OPTIONS=language:fr@cyber\n")
+            lang = tui.game_language
+            self.assertEqual(lang({}, rc), "fr@cyber")
+            self.assertEqual(lang({"NETHACKOPTIONS": "language:fr"}, rc),
+                             "fr")
+            # NETHACKOPTIONS désigne un autre fichier d'options
+            self.assertEqual(lang({"NETHACKOPTIONS": "@" + rc}), "fr@cyber")
+            self.assertIsNone(lang({}, os.path.join(d, "absent")))
+
+    def test_theme_and_universe(self):
+        self.assertEqual(tui.universe("fr@cyber"), "cyber")
+        self.assertEqual(tui.universe(None), "classique")
+        choose = tui.choose_theme
+        self.assertEqual(choose("auto", "fr@cyber"), "cyber")
+        self.assertEqual(choose("auto", "fr"), "classique")
+        self.assertEqual(choose("classique", "fr@cyber"), "classique")
+        self.assertEqual(choose("cyber", None, colors=False), "sobre")
+        # tous les thèmes et univers définissent les mêmes éléments (un
+        # thème peut aussi redéfinir un style commun)
+        own = [set(t) - set(tui.COMMON_STYLES) for t in tui.THEMES.values()]
+        self.assertTrue(all(s == own[0] for s in own))
+        self.assertEqual(set(tui.TEXTS["classique"]),
+                         set(tui.TEXTS["cyber"]))
+        for name, _, group in tui.MAIN_ENTRIES:
+            for key in (name, f"{name}_desc", group):
+                self.assertIn(key, tui.TEXTS["classique"])
+
+    def test_group_title_and_help(self):
+        self.assertEqual(tui.group_title("Atelier", 20),
+                         "── Atelier ─────────")
+        self.assertEqual(tui.help_groups("Entrée voir   p jouer   q retour"),
+                         [("Entrée", "voir"), ("p", "jouer"),
+                          ("q", "retour")])
+
+    def test_parse_args(self):
+        parse = tui.parse_args
+        self.assertEqual(parse([]), (None, "auto", True))
+        self.assertEqual(parse(["--theme", "sobre", "--sans-souris", "a.wad"]),
+                         ("a.wad", "sobre", False))
+        self.assertEqual(parse(["--theme=cyber"])[1], "cyber")
+        for bad in (["--theme", "rose"], ["a.wad", "b.wad"], ["--theme"],
+                    ["--inconnu"]):
+            with self.assertRaises(ValueError):
+                parse(bad)
+
+
 NETHACK = os.path.join(tui.NETHACK_SRC, "include")
 
 

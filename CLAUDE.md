@@ -57,7 +57,9 @@ construit le petit WAD de test (3 salles, la dernière sombre).
   monstres, objets).
 - `dungeon.py` : déclaration des branches dans `dat/dungeon.lua`, entre
   marqueurs `-- doom2nethack:begin/end <nom>`.
-- `tui.py` : menu interactif ; `play.py` : lance `nethack -D` dans un
+- `tui.py` : menu interactif, au design du lanceur `../Nethack_Launcher`
+  (thèmes `THEMES`, textes classiques ou Night City `TEXTS` selon la
+  langue de NetHack) ; `play.py` : lance `nethack -D` dans un
   pseudo-terminal et tape les touches qui mènent au niveau.
 
 Sorties dans `out/<WAD sans .wad>/` (ignoré par git) : `<carte>.lua`, ou

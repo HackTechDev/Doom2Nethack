@@ -46,8 +46,12 @@ Depuis le répertoire du projet :
 ./Doom2Nethack.sh freedoom-0.13.0/freedoom1.wad
 ```
 
-Le menu principal s'ouvre. En haut s'affiche le fichier WAD utilisé ; en
-bas, les touches disponibles dans l'écran courant. Dans tous les menus :
+Le menu principal s'ouvre : sous le logo, les entrées numérotées, puis le
+fichier WAD utilisé, la description de l'entrée choisie et l'aide. Une
+entrée se choisit aux flèches puis `Entrée`, ou directement par son
+numéro ou sa touche entre crochets (`c` ou `1` pour **Convertir des
+cartes**). Les autres écrans affichent en haut le fichier WAD utilisé, et
+en bas les touches disponibles. Dans tous les menus :
 
 | Touche              | Effet                              |
 |---------------------|------------------------------------|
@@ -56,6 +60,18 @@ bas, les touches disponibles dans l'écran courant. Dans tous les menus :
 | `Entrée`            | valider                            |
 | `q` ou `Échap`      | revenir à l'écran précédent        |
 | `l`                 | journal des conversions            |
+
+La souris marche aussi : un clic choisit une ligne, un double-clic la
+valide, la molette fait défiler.
+
+> Si NetHack est configuré en version cyberpunk
+> (`OPTIONS=language:fr@cyber`), le menu prend les noms de Night City,
+> comme le lanceur : « Pirater des cartes » pour **Convertir des
+> cartes**, « Secteurs compilés » pour **Niveaux convertis**, « Journal
+> des opérations », « Brancher un autre WAD », « Purger les branches
+> Doom », « Déconnexion ». Les touches ne changent pas. Ce tutoriel
+> emploie les noms classiques ; `./Doom2Nethack.sh --theme classique`
+> change seulement les couleurs.
 
 La prochaine fois, `./Doom2Nethack.sh` sans argument reprendra ce
 WAD. Pour en changer, choisissez **Choisir un autre WAD** : la liste
@@ -69,7 +85,7 @@ répertoire des WAD, `/` permet de taper un chemin (`Tab` complète).
    options de conversion.
 2. La ligne E1M1 est sélectionnée : appuyez sur `Entrée`.
 
-La conversion se fait en arrière-plan. La barre du haut montre sa
+La conversion se fait en arrière-plan. L'en-tête de l'écran montre sa
 progression, puis `✔ 1 conversion(s) terminée(s)`. La ligne E1M1 indique
 alors `✔ converti`. Le fichier écrit est `out/freedoom1/e1m1.lua`.
 

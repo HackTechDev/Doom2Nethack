@@ -14,8 +14,9 @@ git clone https://github.com/HackTechDev/Doom2Nethack.git
 
 ![Menu principal de Doom2Nethack](docs/menu.svg)
 
-*Le menu interactif (`./Doom2Nethack.sh`) : conversion des cartes d'un
-WAD, niveaux convertis, journal des conversions.*
+*Le menu interactif (`./Doom2Nethack.sh`), au design du lanceur
+Nethack_Launcher : conversion des cartes d'un WAD, niveaux convertis,
+journal des conversions.*
 
 ![E1M1 de Freedoom converti et chargé dans NetHack](docs/e1m1-nethack.svg)
 
@@ -98,11 +99,37 @@ deux modes de conversion, découper un grand niveau, convertir un
 Le script vérifie que Python 3 et son module `curses` sont présents, puis
 lance `Doom2Nethack.py` (qu'on peut aussi lancer directement). Comme
 `convertDoom2Nethack.sh`, il tient compte des variables `HACKDIR`,
-`NETHACK` et `WAD_DIR`. Sans argument, le menu reprend le dernier WAD utilisé (ou propose d'en
-choisir un). L'interface est en couleurs (8 couleurs standard, thème
-dans `App.init_theme()` de `d2n/tui.py`) ; dans un terminal sans
-couleurs, elle se rabat sur le gras et la vidéo inverse. Il affiche le
-fichier WAD utilisé et offre deux menus principaux :
+`NETHACK` et `WAD_DIR`. Sans argument, le menu reprend le dernier WAD
+utilisé (ou propose d'en choisir un).
+
+Le menu reprend le design du lanceur
+[Nethack_Launcher](../Nethack_Launcher) : logo, titre entre deux
+séparateurs, entrées numérotées et rangées par groupe (« Conversion »,
+« Réglages »), description de l'entrée choisie et aide en bas de
+l'écran. Une entrée se choisit aux flèches puis `Entrée`, ou directement
+par son numéro ou sa touche : `c` (1) convertir des cartes, `n` (2)
+niveaux convertis, `l` (3) journal, `w` (4) choisir un autre WAD, `r` (5)
+retirer les branches Doom ; `q` ou `Échap` quitte. À la souris, dans le
+menu principal comme dans les listes, un clic choisit une ligne, un
+double-clic la valide et la molette fait défiler ; l'option
+`--sans-souris` laisse au terminal la sélection de texte à la souris.
+
+Comme le lanceur, le menu lit la langue de NetHack
+(`OPTIONS=language:…` dans `~/.nethackrc`, ou `NETHACKOPTIONS`). Avec la
+version cyberpunk (`fr@cyber`), il passe dans l'univers de Night City :
+titre « CONVERTISSEUR // NIGHT CITY », entrées « Pirater des cartes »,
+« Secteurs compilés », « Journal des opérations », « Brancher un autre
+WAD », « Purger les branches Doom » et « Déconnexion ». Les couleurs
+suivent un thème du lanceur : `classique` (logo rouge et jaune,
+séparateurs bleus), `cyber` (néons magenta, cyan et vert) ou `sobre`
+(gras et texte atténué). `--theme auto` (par défaut) prend `cyber` pour
+la version cyberpunk et `classique` sinon ; `--theme NOM` en impose un.
+Sans couleurs (terminal monochrome, variable `NO_COLOR`), le thème
+`sobre` est utilisé. Thèmes et textes sont définis dans `THEMES` et
+`TEXTS` (`d2n/tui.py`).
+
+Ce README emploie les libellés de l'univers classique. Les deux écrans
+principaux :
 
 - **Convertir des cartes** : liste les cartes du WAD ; `Entrée`
   convertit la carte choisie dans `out/<WAD sans .wad>/` (par exemple
@@ -110,7 +137,7 @@ fichier WAD utilisé et offre deux menus principaux :
   affiche le résultat. Les cartes déjà converties sont marquées. `Espace`
   coche des cartes et `a` les coche toutes : `Entrée` les convertit
   alors l'une après l'autre. Les conversions se font en arrière-plan : le
-  menu reste utilisable, la barre du haut montre leur progression et les
+  menu reste utilisable, l'en-tête montre leur progression et les
   cartes en cours ou en attente sont marquées. `l`, depuis n'importe quel
   écran, ouvre le journal des conversions : résultat de chacune
   (`Entrée` : détails, `r` : résumé de toutes), `x` arrête celles en
@@ -183,8 +210,9 @@ répertoire des WAD, `/` permet de saisir un chemin (absolu, relatif au
 répertoire affiché ou commençant par `~`), avec complétion par `Tab`.
 `Retirer les branches Doom` lance
 `convertDoom2Nethack.sh --restore` (le script demande confirmation).
-Navigation : flèches, `Page↑`/`Page↓`, `Entrée`, `q` ou `Échap` pour
-revenir.
+Dans les listes : flèches (ou molette), `Page↑`/`Page↓`, `Début`/`Fin`,
+`Entrée` (ou double-clic), `q` ou `Échap` pour revenir ; l'aide en bas
+de chaque écran rappelle ses touches.
 
 ### Commandes utiles dans le jeu
 

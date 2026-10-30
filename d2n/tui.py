@@ -603,14 +603,6 @@ def complete_path(text, base):
 
 # --- interface --------------------------------------------------------------
 
-def cursor_visible(visible):
-    """Affiche ou masque le curseur, si le terminal le permet."""
-    try:
-        curses.curs_set(visible)
-    except curses.error:
-        pass
-
-
 LOGO = [("█▀▄ █▀█ █▀█ █▀▄▀█", "█▄ █ █▀▀ ▀█▀ █ █ ▄▀▄ ▄▀▀ █▄▀"),
         ("█▄▀ █▄█ █▄█ █ ▀ █", "█ ▀█ ██▄  █  █▀█ █▀█ ▀▄▄ █ █")]
 
@@ -620,61 +612,253 @@ JOURNAL = "l"
 ENTER = ("\n", "\r", curses.KEY_ENTER)
 BACK = ("q", "Q", "\x1b")
 
+# Thèmes et univers repris du lanceur Nethack_Launcher : chaque élément de
+# l'affichage a une couleur (ou None) et des attributs.
+COLOR_NAMES = {"noir": curses.COLOR_BLACK, "rouge": curses.COLOR_RED,
+               "vert": curses.COLOR_GREEN, "jaune": curses.COLOR_YELLOW,
+               "bleu": curses.COLOR_BLUE, "magenta": curses.COLOR_MAGENTA,
+               "cyan": curses.COLOR_CYAN, "blanc": curses.COLOR_WHITE}
+ATTR_NAMES = {"gras": curses.A_BOLD, "pale": curses.A_DIM,
+              "inverse": curses.A_REVERSE, "souligne": curses.A_UNDERLINE}
+COMMON_STYLES = {
+    "titre": (None, "gras"), "dim": (None, "pale"), "aide": (None, "pale"),
+    "path": (None, "gras"), "indisponible": (None, "pale"),
+    "selection": (None, "inverse", "gras"),
+}
+THEMES = {
+    "classique": {
+        "logo": ("rouge", "gras"), "logo2": ("jaune", "gras"),
+        "separateur": ("bleu",), "groupe": ("bleu", "gras"),
+        "numero": ("cyan",), "touche": ("jaune", "gras"),
+        "description": ("cyan",), "label": ("cyan",),
+        "accent": ("jaune", "gras"), "ok": ("vert",), "warn": ("jaune",),
+        "busy": ("magenta", "gras"), "error": ("rouge", "gras"),
+        "invite": ("jaune", "gras"),
+    },
+    "cyber": {
+        "logo": ("magenta", "gras"), "logo2": ("cyan", "gras"),
+        "titre": ("cyan", "gras"), "separateur": ("cyan",),
+        "groupe": ("magenta", "gras"), "numero": ("vert",),
+        "touche": ("cyan", "gras"), "description": ("magenta",),
+        "label": ("cyan",), "accent": ("vert", "gras"), "ok": ("vert",),
+        "warn": ("jaune",), "busy": ("magenta", "gras"),
+        "error": ("rouge", "gras"), "invite": ("cyan", "gras"),
+    },
+    "sobre": {
+        "logo": (None, "gras"), "logo2": (None, "gras"),
+        "separateur": (None,), "groupe": (None, "gras"),
+        "numero": (None,), "touche": (None, "gras"),
+        "description": (None,), "label": (None,),
+        "accent": (None, "gras"), "ok": (None, "gras"), "warn": (None,),
+        "busy": (None, "gras"), "error": (None, "gras"),
+        "invite": (None, "gras"),
+    },
+}
+THEME_NAMES = ("auto", *THEMES)
+
+# Textes de l'interface : l'univers « cyber » suit la version cyberpunk de
+# NetHack (langue fr@cyber), comme le lanceur.
+TEXTS = {
+    "classique": {
+        "titre": "CONVERTISSEUR DOOM",
+        "sous_titre": "conversion de niveaux Doom en niveaux NetHack",
+        "groupe_conversion": "Conversion",
+        "groupe_reglages": "Réglages",
+        "convert": "Convertir des cartes",
+        "convert_desc": "Convertit les cartes du WAD dans {out}/<WAD>/ : "
+        "une à une, ou plusieurs cochées, en arrière-plan.",
+        "levels": "Niveaux convertis",
+        "levels_desc": "Aperçu en couleurs, installation dans NetHack et "
+        "partie en mode wizard sur un niveau converti.",
+        "journal": "Journal des conversions",
+        "journal_desc": "Résultat de chaque conversion de la session "
+        "({n} pour l'instant).",
+        "wad": "Choisir un autre WAD",
+        "wad_desc": "WAD récents et explorateur de fichiers, à partir du "
+        "répertoire des WAD.",
+        "restore": "Retirer les branches Doom",
+        "restore_desc": "Retire de dungeon.lua les branches Doom déclarées "
+        "({n}) et réinstalle nhdat (convertDoom2Nethack.sh --restore).",
+        "restore_none": "aucune branche",
+        "quitter": "Quitter",
+        "quitter_desc": "Quitter le menu ; les conversions en cours sont "
+        "arrêtées, après confirmation.",
+        "aide": "↑/↓ choisir · Entrée valider · touche ou numéro · "
+        "q quitter",
+        "ecran_convert": "conversion",
+        "ecran_levels": "niveaux convertis",
+        "ecran_journal": "journal des conversions",
+        "ecran_wad": "choisir un fichier WAD",
+        "touche_inconnue": "Touche inconnue : {touche}",
+    },
+    "cyber": {
+        "titre": "CONVERTISSEUR // NIGHT CITY",
+        "sous_titre": "piratage de niveaux Doom en secteurs de Night City",
+        "groupe_conversion": "Piratage",
+        "groupe_reglages": "Système",
+        "convert": "Pirater des cartes",
+        "convert_desc": "Recompile les cartes du WAD en secteurs de Night "
+        "City dans {out}/<WAD>/ : une à une, ou plusieurs marquées, en "
+        "tâche de fond.",
+        "levels": "Secteurs compilés",
+        "levels_desc": "Inspecte un secteur compilé, l'injecte dans NetHack "
+        "ou s'y branche en mode debug.",
+        "journal": "Journal des opérations",
+        "journal_desc": "Rapport de chaque piratage de la session "
+        "({n} pour l'instant).",
+        "wad": "Brancher un autre WAD",
+        "wad_desc": "WAD récents et navigation dans les fichiers, à partir "
+        "du répertoire des WAD.",
+        "restore": "Purger les branches Doom",
+        "restore_desc": "Efface de dungeon.lua les branches Doom déclarées "
+        "({n}) et réinstalle nhdat (convertDoom2Nethack.sh --restore).",
+        "restore_none": "aucune branche",
+        "quitter": "Déconnexion",
+        "quitter_desc": "Couper la liaison et quitter le terminal ; les "
+        "opérations en cours sont interrompues, après confirmation.",
+        "aide": "↑/↓ naviguer · Entrée connexion · touche ou numéro · "
+        "q déconnexion",
+        "ecran_convert": "piratage",
+        "ecran_levels": "secteurs compilés",
+        "ecran_journal": "journal des opérations",
+        "ecran_wad": "brancher un WAD",
+        "touche_inconnue": "Commande inconnue : {touche}",
+    },
+}
+
+# Menu principal : (entrée, touche, groupe).
+MAIN_ENTRIES = [("convert", "c", "groupe_conversion"),
+                ("levels", "n", "groupe_conversion"),
+                ("journal", "l", "groupe_conversion"),
+                ("wad", "w", "groupe_reglages"),
+                ("restore", "r", "groupe_reglages")]
+MAIN_WIDTH = 56             # largeur des séparateurs du menu principal
+GROUP_WIDTH = 40            # largeur des titres de groupe
+
+
+def game_language(env=None, rc=None):
+    """Langue de NetHack (OPTIONS=language:...) lue dans ~/.nethackrc ou
+    NETHACKOPTIONS, la dernière valeur l'emportant ; None si absente."""
+    env = os.environ if env is None else env
+    var = env.get("NETHACKOPTIONS", "")
+    is_file = var.startswith(("@", "/"))
+    path = os.path.expanduser(var.lstrip("@")) if is_file else \
+        rc or os.path.expanduser("~/.nethackrc")
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        lines = []
+    if var and not is_file:
+        lines.append(var)
+    language = None
+    for line in lines:
+        if not line.lstrip().startswith("#"):
+            for m in re.finditer(r"\blanguage:([^,\s]+)", line):
+                language = m.group(1)
+    return language
+
+
+def universe(language):
+    """Univers des textes : « cyber » pour la version cyberpunk."""
+    return "cyber" if (language or "").endswith("@cyber") else "classique"
+
+
+def choose_theme(name, language, colors=True):
+    """Thème utilisé : `auto` suit l'univers ; sans couleurs, « sobre »."""
+    if not colors:
+        return "sobre"
+    if name == "auto":
+        return universe(language)
+    return name
+
+
+def group_title(name, width=GROUP_WIDTH):
+    """Titre de groupe, « ── nom ───── », de largeur `width`."""
+    start = f"── {name} "
+    return start + "─" * max(width - len(start), 3)
+
+
+def help_groups(line):
+    """Groupes « touche action » d'une ligne d'aide (séparés par au moins
+    3 espaces) : liste de (touche, action)."""
+    return [tuple(g.partition(" ")[::2]) for g in re.split(r" {3,}",
+                                                           line.strip()) if g]
+
+
+def cursor_visible(visible):
+    """Affiche ou masque le curseur, si le terminal le permet."""
+    try:
+        curses.curs_set(visible)
+    except curses.error:
+        pass
+
 
 class App:
-    def __init__(self, scr, wad=None):
+    def __init__(self, scr, wad=None, theme="auto", mouse=True):
         self.scr = scr
         self.wad = wad
         self.opts = load_options()
         self.jobs = Jobs()
         self.seen = 0               # dernière version de self.jobs affichée
         cursor_visible(0)
-        self.init_theme()
+        language = game_language()
+        self.texts = TEXTS[universe(language)]
+        self.colors = curses.has_colors() and "NO_COLOR" not in os.environ
+        self.init_theme(choose_theme(theme, language, self.colors))
+        if mouse:
+            # clic : choisir une ligne ; double-clic : valider ; molette
+            curses.mousemask(curses.BUTTON1_CLICKED
+                             | curses.BUTTON1_DOUBLE_CLICKED
+                             | curses.BUTTON4_PRESSED
+                             | getattr(curses, "BUTTON5_PRESSED", 0))
         # attributs de l'aperçu des cartes, par nature de case
         colors = {"door": curses.COLOR_YELLOW, "water": curses.COLOR_BLUE,
                   "lava": curses.COLOR_RED, "bars": curses.COLOR_CYAN,
                   "monster": curses.COLOR_RED, "invisible": curses.COLOR_RED,
                   "object": curses.COLOR_CYAN, "stair": curses.COLOR_MAGENTA}
         self.cell_attr = {k: curses.A_BOLD for k in colors}
-        if curses.has_colors():
+        if self.colors:
             for i, (k, color) in enumerate(colors.items(), 10):
-                curses.init_pair(i, color, -1)
+                curses.init_pair(i, color, self.background)
                 self.cell_attr[k] = curses.color_pair(i)
         for k in ("monster", "stair", "invisible"):
             self.cell_attr[k] |= curses.A_BOLD
         self.cell_attr["invisible"] |= curses.A_UNDERLINE
 
-    def init_theme(self):
-        """Couleurs de l'interface ; sans couleurs, gras et vidéo inverse."""
-        B, R, D = curses.A_BOLD, curses.A_REVERSE, curses.A_DIM
-        t = {"bar": R, "bar_title": R | B, "key": B, "sel": R | B,
-             "label": B, "accent": B, "dim": D, "ok": B, "warn": B,
-             "busy": B, "error": B, "msg": R | B, "logo1": B, "logo2": B,
-             "path": B}
-        if curses.has_colors():
-            curses.use_default_colors()
-            pairs = {   # nom : (texte, fond, attribut)
-                "bar": (curses.COLOR_WHITE, curses.COLOR_BLUE, 0),
-                "bar_title": (curses.COLOR_WHITE, curses.COLOR_BLUE, B),
-                "key": (curses.COLOR_BLACK, curses.COLOR_CYAN, 0),
-                "sel": (curses.COLOR_BLACK, curses.COLOR_CYAN, 0),
-                "label": (curses.COLOR_CYAN, -1, 0),
-                "accent": (curses.COLOR_YELLOW, -1, B),
-                "ok": (curses.COLOR_GREEN, -1, 0),
-                "warn": (curses.COLOR_YELLOW, -1, 0),
-                "busy": (curses.COLOR_MAGENTA, -1, B),
-                "error": (curses.COLOR_RED, -1, B),
-                "msg": (curses.COLOR_BLACK, curses.COLOR_YELLOW, 0),
-                "logo1": (curses.COLOR_RED, -1, B),
-                "logo2": (curses.COLOR_YELLOW, -1, B),
-            }
-            for i, (name, (fg, bg, attr)) in enumerate(pairs.items(), 20):
-                curses.init_pair(i, fg, bg)
-                t[name] = curses.color_pair(i) | attr
+    def init_theme(self, name):
+        """Attributs curses de chaque élément de l'affichage pour le thème
+        `name` (classique, cyber ou sobre)."""
+        self.background = curses.COLOR_BLACK
+        if self.colors:
+            try:
+                curses.use_default_colors()
+                self.background = -1
+            except curses.error:
+                pass
+        pairs, t = {}, {}
+        for elt, (color, *attrs) in {**COMMON_STYLES,
+                                     **THEMES[name]}.items():
+            attr = 0
+            for a in attrs:
+                attr |= ATTR_NAMES[a]
+            if color and self.colors:
+                if color not in pairs:
+                    n = 20 + len(pairs)
+                    curses.init_pair(n, COLOR_NAMES[color], self.background)
+                    pairs[color] = curses.color_pair(n)
+                attr |= pairs[color]
+            t[elt] = attr
+        self.theme_name = name
         self.theme = t
         self.section = t["accent"]
         self.done = t["ok"]
         self.error = t["error"]
+
+    def tx(self, key, **values):
+        """Texte de l'interface dans l'univers choisi."""
+        text = self.texts[key]
+        return text.format(**values) if values else text
 
     # dessin
 
@@ -699,58 +883,62 @@ class App:
                 pass
 
     def header(self, title):
+        """Titre de l'écran, WAD utilisé et séparateur ; retourne la
+        première ligne libre."""
         self.scr.erase()
         w = self.scr.getmaxyx()[1]
         t = self.theme
         self.seen = self.jobs.version
-        status = self.jobs_status()
-        self.put(0, 0, " " * w, t["bar"])
-        x = self.draw(0, 0, [(" ◆ Doom2NetHack ", t["bar_title"]),
-                             ("› ", t["bar"]), (title, t["bar_title"])])
+        x = self.draw(0, 1, [("◆ Doom2NetHack", t["logo"]), (" › ", t["dim"]),
+                             (title, t["titre"])])
+        status, attr = self.jobs_status()
         if status:
-            self.put(0, max(w - len(status) - 1, x + 2), status, t["bar"])
+            self.put(0, max(w - len(status) - 1, x + 2), status, attr)
         self.draw(1, 1, [("Fichier WAD  ", t["label"]),
                          (rel(self.wad) if self.wad else "(aucun)",
                           t["path"])])
-        self.put(2, 0, "─" * w, t["dim"])
+        self.put(2, 0, "=" * (w - 1), t["separateur"])
         return 3
 
     def footer(self, text, attr=None):
-        """Barre du bas (plusieurs lignes séparées par \\n).  Sans `attr`,
-        chaque groupe « touche action » (séparés par 3 espaces) montre la
-        touche en surbrillance."""
+        """Aide en bas de l'écran (plusieurs lignes séparées par \\n).
+        Sans `attr`, chaque groupe « touche action » (séparés par 3
+        espaces) montre la touche en couleur, les groupes séparés par
+        « · »."""
         h, w = self.scr.getmaxyx()
         t = self.theme
         lines = text.split("\n")
         for k, line in enumerate(lines):
             y = h - len(lines) + k
+            self.put(y, 0, " " * w)
             if attr is not None:
-                self.put(y, 0, f" {line}".ljust(w), attr)
+                self.put(y, 1, line, attr)
                 continue
-            self.put(y, 0, " " * w, t["bar"])
             x = 1
-            for group in re.split(r" {3,}", line.strip()):
-                key, _, label = group.partition(" ")
-                x = self.draw(y, x, [(f" {key} ", t["key"]),
-                                     (f" {label}  " if label else "  ",
-                                      t["bar"])])
+            for i, (key, label) in enumerate(help_groups(line)):
+                x = self.draw(y, x, [(" · " if i else "", t["aide"]),
+                                     (key, t["touche"]),
+                                     (f" {label}" if label else "",
+                                      t["aide"])])
 
     def status(self, text):
-        self.footer(text, self.theme["bar"])
+        self.footer(text, self.theme["invite"])
         self.scr.refresh()
 
     def jobs_status(self):
+        """État des conversions pour l'en-tête : (texte, attribut)."""
         j = self.jobs
         if j.active():
             width = 10
             fill = width * j.done // max(j.total, 1)
             name = j.current[1] if j.current else ""
             return (f"⟳ {'█' * fill}{'░' * (width - fill)} "
-                    f"{j.done}/{j.total} {name} ")
+                    f"{j.done}/{j.total} {name}", self.theme["busy"])
         if j.total:
             failed = f", {j.failed} échec(s)" if j.failed else ""
-            return f"✔ {j.done} conversion(s) terminée(s){failed} · l journal "
-        return ""
+            return (f"✔ {j.done} conversion(s) terminée(s){failed} · "
+                    "l journal", self.theme["warn" if j.failed else "ok"])
+        return "", 0
 
     def key(self, wake=False):
         """Touche pressée.  Avec `wake`, retourne None quand l'état des
@@ -769,22 +957,48 @@ class App:
             elif wake:
                 return None
 
+    @staticmethod
+    def mouse():
+        """Événement souris : (ligne, action), action valant "clic",
+        "double", "haut" ou "bas" (molette) ; None sinon."""
+        try:
+            _, _, y, _, buttons = curses.getmouse()
+        except curses.error:
+            return None
+        if buttons & curses.BUTTON4_PRESSED:
+            return y, "haut"
+        if buttons & getattr(curses, "BUTTON5_PRESSED", 0):
+            return y, "bas"
+        if buttons & curses.BUTTON1_DOUBLE_CLICKED:
+            return y, "double"
+        if buttons & curses.BUTTON1_CLICKED:
+            return y, "clic"
+        return None
+
     def message(self, text):
-        self.footer(f"{text}  (une touche pour continuer)", self.theme["msg"])
+        self.footer(f"{text}  (une touche pour continuer)",
+                    self.theme["invite"])
         self.key()
 
     def confirm(self, question):
-        self.footer(f"{question} [o/N]", self.theme["msg"])
+        self.footer(f"{question} [o/N]", self.theme["invite"])
         return self.key() in ("o", "O", "y", "Y")
 
     # listes
 
+    def group_row(self, name, extra=""):
+        """Ligne de titre de groupe d'une liste, non sélectionnable."""
+        t = self.theme
+        return ([(group_title(name), t["groupe"])]
+                + ([(f" {extra}", t["dim"])] if extra else []), False, 0)
+
     def menu(self, title, rows, sel=0, footer="", keys="", info=(),
              live=False):
         """`rows` : (texte, sélectionnable, attribut).  Retourne (touche,
-        index de la ligne choisie) ; touche "\\n" pour Entrée, "q" pour
-        retour.  Avec `live`, retourne "refresh" quand l'état des
-        conversions change, pour que l'appelant refasse ses lignes."""
+        index de la ligne choisie) ; touche "\\n" pour Entrée (ou
+        double-clic), "q" pour retour.  Avec `live`, retourne "refresh"
+        quand l'état des conversions change, pour que l'appelant refasse
+        ses lignes."""
         ok = [i for i, r in enumerate(rows) if r[1]]
         if not ok:
             return "q", None
@@ -797,26 +1011,37 @@ class App:
                 self.draw(y0 + i, 1, line)
             y0 += len(info) + bool(info)
             h, w = self.scr.getmaxyx()
-            n = max(h - 1 - footer.count("\n") - y0, 1)
+            n = max(h - 2 - footer.count("\n") - y0, 1)
             top = min(max(top, sel - n + 1), sel)
             if top == sel and sel > 0 and not rows[sel - 1][1]:
-                top = sel - 1               # garder le titre de section
+                top = sel - 1               # garder le titre de groupe
             for k, (text, selectable, attr) in enumerate(rows[top:top + n]):
                 if top + k == sel:
-                    sel_attr = self.theme["sel"]
-                    self.put(y0 + k, 1, " " * (w - 2), sel_attr)
                     plain = text if isinstance(text, str) else \
                         "".join(p[0] if isinstance(p, tuple) else p
                                 for p in text)
-                    self.put(y0 + k, 1, f" ▸ {plain}"[:w - 2], sel_attr)
+                    self.put(y0 + k, 1, f"  {plain}"[:w - 2].ljust(w - 2),
+                             self.theme["selection"])
                 else:
-                    self.draw(y0 + k, 1, [("   " if selectable else " ", 0)] + (
+                    self.draw(y0 + k, 1, [("  " if selectable else "", 0)] + (
                         [(text, attr)] if isinstance(text, str) else
                         [(p, attr) if isinstance(p, str) else p
                          for p in text]))
             self.footer(footer)
             c = self.key(wake=True)
             pos = ok.index(sel)
+            if c == curses.KEY_MOUSE:
+                event = self.mouse()
+                if not event:
+                    continue
+                y, action = event
+                if action in ("haut", "bas"):
+                    c = UP[0] if action == "haut" else DOWN[0]
+                elif 0 <= y - y0 < n and top + y - y0 in ok:
+                    sel = top + y - y0
+                    if action == "double":
+                        return "\n", sel
+                    continue
             if c is None:
                 if live:
                     return "refresh", sel
@@ -848,7 +1073,7 @@ class App:
         while True:
             y0 = self.header(title)
             h, w = self.scr.getmaxyx()
-            n = max(h - 1 - y0, 1)
+            n = max(h - 2 - y0, 1)
             shown = []
             for line in lines:
                 text, attr = line if isinstance(line, tuple) else (line, 0)
@@ -862,7 +1087,11 @@ class App:
             c = self.key(wake=True)
             if c is None:
                 continue
-            if c == JOURNAL and JOURNAL not in keys:
+            if c == curses.KEY_MOUSE:
+                event = self.mouse()
+                if event and event[1] in ("haut", "bas"):
+                    top += 3 if event[1] == "bas" else -3
+            elif c == JOURNAL and JOURNAL not in keys:
                 self.journal()
             elif c in UP:
                 top -= 1
@@ -879,41 +1108,139 @@ class App:
 
     # écrans
 
+    def main_entries(self):
+        """Entrées du menu principal : (entrée, touche, groupe, libellé,
+        description, problème qui l'empêche, ou "")."""
+        counts = {"journal": len(self.jobs.results),
+                  "restore": len(declared_branches())}
+        entries = []
+        for name, key, group in MAIN_ENTRIES:
+            desc = self.tx(f"{name}_desc", out=rel(OUT_DIR),
+                           n=counts.get(name, 0))
+            problem = self.tx("restore_none") \
+                if name == "restore" and not counts["restore"] else ""
+            entries.append((name, key, group, self.tx(name), desc, problem))
+        return entries
+
+    def draw_main(self, entries, sel, message=""):
+        """Menu principal à la manière du lanceur : logo, titre entre
+        séparateurs, entrées numérotées par groupe, description de
+        l'entrée choisie et aide.  Retourne {ligne : entrée}."""
+        self.scr.erase()
+        self.seen = self.jobs.version
+        h, w = self.scr.getmaxyx()
+        t = self.theme
+        width = min(MAIN_WIDTH, w - 1)
+        zones, y = {}, 0
+        if h >= 25:
+            for i, (doom, nethack) in enumerate(LOGO):
+                self.draw(i, 2, [(doom, t["logo"]), ("   ", 0),
+                                 ("━▶" if i else "  ", t["dim"]),
+                                 ("   ", 0), (nethack, t["logo2"])])
+            self.put(2, 2, self.tx("sous_titre"), t["dim"])
+            y = 3
+        self.put(y, 0, "=" * width, t["separateur"])
+        self.put(y + 1, 0, self.tx("titre").center(width).rstrip(),
+                 t["titre"])
+        self.put(y + 2, 0, "=" * width, t["separateur"])
+        y += 3
+        group = None
+        for i, (_, key, grp, label, _, problem) in enumerate(entries):
+            if grp != group:
+                self.put(y, 0, group_title(self.tx(grp), width), t["groupe"])
+                group, y = grp, y + 1
+            zones[y] = i
+            if i == sel:
+                text = f"  {i + 1} [{key}]  {label}" + \
+                    (f"  ({problem})" if problem else "")
+                self.put(y, 0, text.ljust(width), t["selection"])
+            else:
+                x = self.draw(y, 2, [(str(i + 1), t["numero"]), (" ", 0),
+                                     (f"[{key}]", t["touche"]), ("  ", 0),
+                                     (label, t["indisponible"] if problem
+                                      else 0)])
+                if problem:
+                    self.put(y, x + 2, f"({problem})", t["error"])
+            y += 1
+        y += 1
+        zones[y] = len(entries)
+        if sel == len(entries):
+            self.put(y, 0, f"    [q]  {self.tx('quitter')}".ljust(width),
+                     t["selection"])
+        else:
+            self.draw(y, 4, [("[q]", t["touche"]), ("  ", 0),
+                             (self.tx("quitter"), 0)])
+        self.put(y + 1, 0, "=" * width, t["separateur"])
+        y += 3
+        self.draw(y, 0, [("Fichier WAD  ", t["label"]),
+                         (rel(self.wad) if self.wad else "(aucun)",
+                          t["path"])])
+        status, attr = self.jobs_status()
+        if status:
+            y += 1
+            self.put(y, 0, status, attr)
+        y += 2
+        # description de l'entrée choisie ; la place de la plus longue est
+        # réservée pour que l'aide ne bouge pas d'une entrée à l'autre
+        wrap = max(min(w - 1, 76), 20)
+        descs = [e[4] for e in entries] + [self.tx("quitter_desc")]
+        for k, line in enumerate(textwrap.wrap(descs[sel], wrap)):
+            self.put(y + k, 0, line, t["description"])
+        y += max(len(textwrap.wrap(d, wrap)) for d in descs) + 1
+        self.put(y, 0, self.tx("aide"), t["aide"])
+        if message:
+            self.put(y + 1, 0, message, t["error"])
+        return zones
+
     def run(self):
         if not self.wad:
             self.choose_wad()
-        sel = 0
+        sel, message = 0, ""
         while True:
-            branches = declared_branches()
-            t = self.theme
-            entries = [
-                ("Convertir des cartes", f"du WAD vers {rel(OUT_DIR)}/<WAD>/",
-                 True),
-                ("Niveaux convertis", "aperçu, installation, jouer", True),
-                ("Journal des conversions",
-                 f"{len(self.jobs.results)} résultat(s)", True),
-                ("Choisir un autre WAD", "WAD récents, explorateur", True),
-                ("Retirer les branches Doom",
-                 f"{len(branches)} déclarée(s) dans dungeon.lua",
-                 bool(branches)),
-                ("Quitter", "", True)]
-            rows = [([(f"{label:<28}" if on else f"  {label:<28}",
-                       0 if on else t["dim"]), (desc, t["dim"])], on, 0)
-                    for label, desc, on in entries]
-            h = self.scr.getmaxyx()[0]
-            info = [[("  ", 0), (doom, t["logo1"]), ("   ", 0),
-                     ("━▶" if i else "  ", t["dim"]), ("   ", 0),
-                     (nethack, t["logo2"])]
-                    for i, (doom, nethack) in enumerate(LOGO)] \
-                + [[("  conversion de niveaux Doom en niveaux NetHack",
-                     t["dim"])]] if h >= 18 else []
-            key, sel = self.menu("menu principal", rows, sel,
-                                 "↑↓ choisir   Entrée valider   "
-                                 "l journal   q quitter", info=info)
-            if sel == 4 and key == "\n":
-                self.shell([SCRIPT, "--restore"])
+            entries = self.main_entries()
+            keys = [e[1] for e in entries]
+            count = len(entries) + 1            # « Quitter » en dernier
+            zones = self.draw_main(entries, sel, message)
+            message = ""
+            c = self.key(wake=True)
+            if c == curses.KEY_MOUSE:
+                event = self.mouse()
+                if not event:
+                    continue
+                y, action = event
+                if action in ("haut", "bas"):
+                    c = UP[0] if action == "haut" else DOWN[0]
+                elif y in zones:
+                    sel = zones[y]
+                    if action != "double":
+                        continue
+                    c = "\n"
+            if c is None:
                 continue
-            if key == "q" or sel == 5:
+            if c in UP:
+                sel = (sel - 1) % count
+                continue
+            if c in DOWN:
+                sel = (sel + 1) % count
+                continue
+            if c == curses.KEY_HOME:
+                sel = 0
+                continue
+            if c == curses.KEY_END:
+                sel = count - 1
+                continue
+            if c in BACK:
+                sel = count - 1
+            elif isinstance(c, str) and c.isdigit() and \
+                    1 <= int(c) <= len(entries):
+                sel = int(c) - 1
+            elif isinstance(c, str) and c.lower() in keys:
+                sel = keys.index(c.lower())
+            elif c not in ENTER:
+                if isinstance(c, str) and c.isprintable() and c != " ":
+                    message = self.tx("touche_inconnue", touche=c)
+                continue
+            if sel == count - 1:
                 n = self.jobs.active()
                 if not n or self.confirm(f"{n} conversion(s) en cours ou en "
                                          "attente seront abandonnées. "
@@ -921,8 +1248,14 @@ class App:
                     self.jobs.stop()
                     return
                 continue
-            (self.convert_menu, self.converted_menu, self.journal,
-             self.choose_wad)[sel]()
+            name, _, _, label, _, problem = entries[sel]
+            if problem:
+                message = f"{label} : {problem}"
+            elif name == "restore":
+                self.shell([SCRIPT, "--restore"])
+            else:
+                {"convert": self.convert_menu, "levels": self.converted_menu,
+                 "journal": self.journal, "wad": self.choose_wad}[name]()
 
     def opts_lines(self):
         o = self.opts
@@ -955,10 +1288,10 @@ class App:
             rows += [("", False, 0), ("Valeurs par défaut", True, 0)]
             key, sel = self.menu("options de conversion", rows, sel,
                                  "Entrée changer   q retour",
-                                 info=[[("En jaune : ", t["accent"]),
-                                        ("valeur modifiée", t["dim"]),
-                                        ("   · options gardées pour les "
-                                         "prochaines sessions dans ",
+                                 info=[[("valeur modifiée", t["accent"]),
+                                        (" : différente de la valeur par "
+                                         "défaut · options gardées pour "
+                                         "les prochaines sessions dans ",
                                          t["dim"]),
                                         (rel(OPTIONS_FILE), t["dim"])]])
             if key == "q":
@@ -995,7 +1328,7 @@ class App:
                     line = "  ".join(shown)
                     self.put(h - 2, 0, f" {line}"[:w].ljust(w))
                 self.put(h - 1, 0, text[-(w - 1):].ljust(w),
-                         self.theme["msg"])
+                         self.theme["invite"])
                 try:
                     self.scr.move(h - 1, min(len(text), w - 2))
                 except curses.error:
@@ -1051,7 +1384,7 @@ class App:
             count = [(f"{len(marked)} carte(s) cochée(s)", t["accent"]),
                      (" · ", t["dim"])] if marked else []
             key, sel = self.menu(
-                "conversion", rows, sel,
+                self.tx("ecran_convert"), rows, sel,
                 "Entrée convertir   Espace cocher   a tout cocher   "
                 "c comparer   q retour\n"
                 "o options   m mode   n découpage   s difficulté   h sols",
@@ -1126,7 +1459,7 @@ class App:
             if not rows:
                 rows = [("(aucune conversion terminée)", True, 0)]
             key, sel = self.menu(
-                "journal des conversions", rows, sel,
+                self.tx("ecran_journal"), rows, sel,
                 "Entrée détails   r tout résumer   x arrêter les "
                 "conversions   e effacer   q retour",
                 keys="rxe" + JOURNAL, info=info, live=True)
@@ -1157,9 +1490,8 @@ class App:
                 if rows:
                     rows.append(("", False, 0))
                 t = self.theme
-                rows.append(([("━━ ", t["dim"]), (s.name, t["accent"]),
-                              (f"  {rel(s.wad)}" if s.wad else "",
-                               t["dim"])], False, 0))
+                rows.append(self.group_row(s.name,
+                                           rel(s.wad) if s.wad else ""))
                 for lv in s.levels:
                     kind = f"branche de {len(lv.parts)} niveaux" \
                         if lv.split else "niveau simple"
@@ -1183,7 +1515,7 @@ class App:
                     [("dungeon.lua  ", self.theme["label"]),
                      (", ".join(branches) or "aucune branche Doom", 0)]]
             key, sel = self.menu(
-                "niveaux convertis", rows, sel,
+                self.tx("ecran_levels"), rows, sel,
                 "Entrée voir   p jouer   i installer dans NetHack   "
                 "x supprimer   q retour", keys="pix", live=True, info=info)
             if key == "q":
@@ -1470,17 +1802,14 @@ class App:
             recent = recent_wads()
             rows, paths = [], []
             if recent:
-                rows.append(([("━━ ", self.theme["dim"]),
-                              ("WAD récents", self.section)], False, 0))
+                rows.append(self.group_row("WAD récents"))
                 paths.append(None)
                 for w in recent:
                     rows.append((f"◆ {rel(w)}", True, self.theme["accent"]))
                     paths.append(w)
                 rows.append(("", False, 0))
                 paths.append(None)
-            rows.append(([("━━ ", self.theme["dim"]),
-                          ("Répertoire ", self.section),
-                          (d, self.theme["dim"])], False, 0))
+            rows.append(self.group_row("Répertoire", d))
             paths.append(None)
             first = len(rows)
             rows += [("▲ ../", True, self.theme["dim"])] + \
@@ -1495,7 +1824,7 @@ class App:
             else:
                 sel = first + 1 + len(dirs) if wads else first
             key, sel = self.menu(
-                "choisir un fichier WAD", rows, sel,
+                self.tx("ecran_wad"), rows, sel,
                 "Entrée ouvrir   / saisir un chemin   w répertoire des WAD   "
                 "x oublier un WAD récent   q annuler", keys="/wx")
             if key == "q":
@@ -1540,15 +1869,54 @@ class App:
             remember_wad(p)
             return True
 
+USAGE = f"""\
+Usage : Doom2Nethack.py [--theme NOM] [--sans-souris] [WAD]
+
+Menu interactif : conversion des cartes du WAD (défaut : le dernier
+utilisé) et niveaux déjà convertis, rangés dans out/<WAD>/.
+Un WAD introuvable est cherché dans WAD_DIR ({WAD_DIR}).
+
+  --theme NOM     couleurs : {", ".join(THEME_NAMES)} (défaut : auto, qui
+                  suit la langue de NetHack : cyber pour fr@cyber)
+  --sans-souris   garder la sélection de texte du terminal à la souris
+
+La variable d'environnement NO_COLOR désactive les couleurs."""
+
+
+def parse_args(argv):
+    """Arguments de la ligne de commande : (WAD ou None, thème, souris) ;
+    ValueError si un argument est invalide."""
+    wad, theme, mouse = None, "auto", True
+    args = list(argv)
+    while args:
+        a = args.pop(0)
+        if a == "--theme" and args:
+            theme = args.pop(0)
+        elif a.startswith("--theme="):
+            theme = a.split("=", 1)[1]
+        elif a == "--sans-souris":
+            mouse = False
+        elif a.startswith("-") or wad:
+            raise ValueError(f"argument inattendu : {a}")
+        else:
+            wad = a
+    if theme not in THEME_NAMES:
+        raise ValueError(f"thème inconnu : {theme} "
+                         f"({', '.join(THEME_NAMES)})")
+    return wad, theme, mouse
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    if argv and argv[0] in ("-h", "--help"):
-        print("Usage : Doom2Nethack.py [WAD]\n\nMenu interactif : "
-              "conversion des cartes du WAD (défaut : le dernier utilisé)\n"
-              "et niveaux déjà convertis, rangés dans out/<WAD>/.\n"
-              f"Un WAD introuvable est cherché dans WAD_DIR ({WAD_DIR}).")
+    if any(a in ("-h", "--help") for a in argv):
+        print(USAGE)
         return 0
-    wad = os.path.abspath(find_wad(argv[0])) if argv else last_wad()
+    try:
+        wad, theme, mouse = parse_args(argv)
+    except ValueError as e:
+        print(f"Doom2Nethack : {e} (voir --help)", file=sys.stderr)
+        return 1
+    wad = os.path.abspath(find_wad(wad)) if wad else last_wad()
     if wad and not os.path.isfile(wad):
         print(f"Doom2Nethack : WAD introuvable : {wad}", file=sys.stderr)
         return 1
@@ -1560,5 +1928,5 @@ def main(argv=None):
         return 1
     locale.setlocale(locale.LC_ALL, "")
     os.environ.setdefault("ESCDELAY", "25")
-    curses.wrapper(lambda scr: App(scr, wad).run())
+    curses.wrapper(lambda scr: App(scr, wad, theme, mouse).run())
     return 0
