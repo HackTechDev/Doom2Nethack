@@ -120,10 +120,9 @@ Ajouter à Yadex une commande « exporter vers NetHack » qui appelle
 
 ### Menu interactif (`menuDoom2Nethack.py`)
 Réalisé dans `d2n/tui.py` : conversion des cartes du WAD dans
-`out/<WAD>/`, niveaux convertis classés par WAD (aperçu, installation,
+`out/<WAD>/`, une à une ou plusieurs d'un coup (cartes cochées, barre de
+progression), niveaux convertis classés par WAD (aperçu, installation,
 suppression). Pistes pour aller plus loin :
-- convertir toutes les cartes du WAD d'un coup (sélection multiple), avec
-  une barre de progression ;
 - régler les autres options (`--rooms`, `--width`, `--height`,
   `--keep-aspect`, `--coverage`) et un seuil de lumière libre ;
 - convertir en arrière-plan, pour que le menu reste utilisable pendant les

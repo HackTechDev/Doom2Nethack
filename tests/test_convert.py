@@ -230,6 +230,18 @@ class TestTui(unittest.TestCase):
         self.assertEqual([lv.name for lv in s.levels], ["map01"])
         self.assertNotIn("map01", tui.load_meta(d)["levels"])
 
+    def test_summary(self):
+        ok, lines = tui.run_conversion(self.wad, "MAP01",
+                                       dict(tui.DEFAULT_OPTS), self.out)
+        out = tui.summary_lines([("MAP01", ok, lines),
+                                 ("E9M9", False, ["x", "erreur"])])
+        texts = [o[0] if isinstance(o, tuple) else o for o in out]
+        self.assertTrue(texts[0].startswith("MAP01") and "ok" in texts[0])
+        self.assertTrue(any("MAP01 : carte" in t for t in texts))
+        self.assertFalse(any("écrit" in t for t in texts))
+        self.assertIn("E9M9     ÉCHEC", texts)
+        self.assertEqual(texts[-1], "    erreur")
+
     def test_bad_map(self):
         ok, lines = tui.run_conversion(self.wad, "E9M9",
                                        dict(tui.DEFAULT_OPTS), self.out)

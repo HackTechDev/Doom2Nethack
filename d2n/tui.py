@@ -165,6 +165,20 @@ def delete_level(section, level):
         save_meta(section.path, meta)
 
 
+def summary_lines(results, error_attr=0):
+    """Résumé de plusieurs conversions : (carte, réussite, lignes)."""
+    out = []
+    for name, ok, lines in results:
+        if ok:
+            out.append((f"{name:<8} ok", curses.A_BOLD))
+            out += [f"    {line.strip()}" for line in lines
+                    if re.match(r"\s*(\w+ : carte|info|attention)", line)]
+        else:
+            out.append((f"{name:<8} ÉCHEC", error_attr | curses.A_BOLD))
+            out += [(f"    {line}", error_attr) for line in lines[-3:]]
+    return out
+
+
 def lua_summary(path):
     """(description, carte avec les escaliers) d'un niveau .lua."""
     with open(path) as f:
@@ -255,8 +269,11 @@ class App:
         return 3
 
     def footer(self, text, attr=curses.A_REVERSE):
+        """Barre du bas (plusieurs lignes séparées par \\n)."""
         h, w = self.scr.getmaxyx()
-        self.put(h - 1, 0, f" {text}".ljust(w), attr)
+        lines = text.split("\n")
+        for k, line in enumerate(lines):
+            self.put(h - len(lines) + k, 0, f" {line}".ljust(w), attr)
 
     def status(self, text):
         self.footer(text)
@@ -294,7 +311,7 @@ class App:
                 self.put(y0 + i, 1, line)
             y0 += len(info) + bool(info)
             h, w = self.scr.getmaxyx()
-            n = max(h - 1 - y0, 1)
+            n = max(h - 1 - footer.count("\n") - y0, 1)
             top = min(max(top, sel - n + 1), sel)
             if top == sel and sel > 0 and not rows[sel - 1][1]:
                 top = sel - 1               # garder le titre de section
@@ -391,6 +408,7 @@ class App:
             self.message(f"Erreur : {e}")
             return
         d = wad_dir(self.wad)
+        marked = set()
         sel = 0
         while True:
             rows = []
@@ -401,36 +419,100 @@ class App:
                     marks.append("converti")
                 if os.path.isdir(os.path.join(d, low)):
                     marks.append("branche")
-                rows.append((f"{name:<8} {', '.join(marks)}", True,
+                star = "*" if name in marked else " "
+                rows.append((f"{star} {name:<8} {', '.join(marks)}", True,
                              self.done if marks else 0))
+            count = f"{len(marked)} carte(s) cochée(s) · " if marked else ""
             key, sel = self.menu(
                 "conversion", rows, sel,
-                "Entrée convertir   m mode   n découpage   s difficulté   "
-                "h sols   l lumière   q retour", keys="".join(CYCLES),
-                info=[f"Destination : {rel(d)}/", self.opts_line()])
+                "Entrée convertir   Espace cocher   a tout cocher   q retour\n"
+                "m mode   n découpage   s difficulté   h sols   l lumière",
+                keys=" a" + "".join(CYCLES),
+                info=[f"Destination : {rel(d)}/", self.opts_line(),
+                      f"{count}{len(names)} carte(s) dans le WAD"])
             if key == "q":
                 return
-            if key in CYCLES:
+            if key == " ":
+                marked ^= {names[sel]}
+                sel = min(sel + 1, len(names) - 1)
+            elif key == "a":
+                marked = set() if len(marked) == len(names) else set(names)
+            elif key in CYCLES:
                 opt, values = CYCLES[key]
                 i = values.index(self.opts[opt])
                 self.opts[opt] = values[(i + 1) % len(values)]
             else:
-                self.convert(names[sel])
+                todo = [n for n in names if n in marked] or [names[sel]]
+                if self.convert(todo):
+                    marked = set()
 
-    def convert(self, name):
+    def target(self, name):
+        """Fichier ou répertoire écrit par la conversion de `name`."""
         low = name.lower()
-        single = self.opts["parts"] == "1"
-        target = os.path.join(wad_dir(self.wad),
-                              f"{low}.lua" if single else low)
-        if os.path.exists(target) and \
-                not self.confirm(f"{rel(target)} existe déjà. Remplacer ?"):
-            return
-        self.status(f"Conversion de {name} en cours...")
-        ok, lines = run_conversion(self.wad, name, self.opts)
-        if not ok:
-            lines = [(line, self.error) for line in lines]
-        self.pager(f"conversion de {name}" + ("" if ok else " : ÉCHEC"),
-                   lines)
+        return os.path.join(wad_dir(self.wad), f"{low}.lua"
+                            if self.opts["parts"] == "1" else low)
+
+    def convert(self, names):
+        """Convertit les cartes `names` ; retourne False si l'utilisateur
+        annule avant la première conversion."""
+        exist = [n for n in names if os.path.exists(self.target(n))]
+        if exist:
+            what = rel(self.target(exist[0])) if len(exist) == 1 \
+                else f"{len(exist)} des {len(names)} cartes"
+            if not self.confirm(f"{what} : déjà converti. Remplacer ?"):
+                return False
+        results = []
+        self.scr.nodelay(True)
+        try:
+            for i, name in enumerate(names):
+                self.progress(i, len(names), name, results)
+                results.append((name, *run_conversion(self.wad, name,
+                                                      self.opts)))
+                if self.pressed_back():
+                    break
+        finally:
+            self.scr.nodelay(False)
+        if len(names) == 1:
+            name, ok, lines = results[0]
+            if not ok:
+                lines = [(line, self.error) for line in lines]
+            self.pager(f"conversion de {name}" + ("" if ok else " : ÉCHEC"),
+                       lines)
+            return True
+        failed = sum(not ok for _, ok, _ in results)
+        title = f"{len(results)} carte(s) convertie(s)"
+        if failed:
+            title += f", {failed} échec(s)"
+        if len(results) < len(names):
+            title += f", {len(names) - len(results)} abandonnée(s)"
+        self.pager(title, summary_lines(results, self.error))
+        return True
+
+    def pressed_back(self):
+        """Vrai si q ou Échap a été pressé (en mode nodelay)."""
+        try:
+            while True:
+                if self.scr.get_wch() in BACK:
+                    return True
+        except curses.error:
+            return False
+
+    def progress(self, done, total, name, results):
+        y = self.header("conversion en cours")
+        w = self.scr.getmaxyx()[1]
+        width = max(min(w - 20, 60), 10)
+        fill = width * done // total
+        self.put(y, 1, f"[{'#' * fill}{'.' * (width - fill)}] "
+                 f"{done}/{total}", curses.A_BOLD)
+        self.put(y + 2, 1, f"Conversion de {name}...")
+        for k, (n, ok, _) in enumerate(results[-(self.rows_left(y + 4)):]):
+            self.put(y + 4 + k, 3, f"{n:<8} {'ok' if ok else 'ÉCHEC'}",
+                     self.done if ok else self.error)
+        self.footer("q interrompre après la carte en cours")
+        self.scr.refresh()
+
+    def rows_left(self, y):
+        return max(self.scr.getmaxyx()[0] - 1 - y, 1)
 
     def converted_menu(self):
         sel = 0

@@ -72,7 +72,10 @@ choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
 - **Convertir une carte du WAD** : liste les cartes du WAD ; `Entrée`
   convertit la carte choisie dans `out/<WAD sans .wad>/` (par exemple
   `out/freedoom1/e1m1.lua`, ou `out/freedoom1/e1m1/` pour une branche) et
-  affiche le résultat. Les cartes déjà converties sont marquées. Les
+  affiche le résultat. Les cartes déjà converties sont marquées. `Espace`
+  coche des cartes et `a` les coche toutes : `Entrée` les convertit
+  alors l'une après l'autre, avec une barre de progression (`q`
+  interrompt après la carte en cours), puis affiche un résumé. Les
   options se changent par touche : `m` mode (`raster`/`rooms`), `n`
   découpage (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts,
   `l` éclairage.
