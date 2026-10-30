@@ -27,7 +27,7 @@ from .dungeon import declared
 from .play import play
 from .split import MAX_PARTS
 from .tables import MONSTERS, OBJECTS, SYMBOLS, doom_sources
-from .wad import Wad, WadError
+from .wad import WAD_DIR, Wad, WadError, find_wad
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(PROJECT, "out")
@@ -1451,7 +1451,10 @@ class App:
     def choose_wad(self):
         """Explorateur de fichiers, avec les WAD récents en tête ; retourne
         True si un WAD est choisi."""
-        d = os.path.dirname(self.wad) if self.wad else os.getcwd()
+        if self.wad:
+            d = os.path.dirname(self.wad)
+        else:
+            d = WAD_DIR if os.path.isdir(WAD_DIR) else os.getcwd()
         came_from = None
         while True:
             try:
@@ -1493,11 +1496,17 @@ class App:
                 sel = first + 1 + len(dirs) if wads else first
             key, sel = self.menu(
                 "choisir un fichier WAD", rows, sel,
-                "Entrée ouvrir   / saisir un chemin   x oublier un WAD "
-                "récent   q annuler", keys="/x")
+                "Entrée ouvrir   / saisir un chemin   w répertoire des WAD   "
+                "x oublier un WAD récent   q annuler", keys="/wx")
             if key == "q":
                 return False
             came_from = None
+            if key == "w":
+                if os.path.isdir(WAD_DIR):
+                    d = WAD_DIR
+                else:
+                    self.message(f"Répertoire des WAD introuvable : {WAD_DIR}")
+                continue
             if key == "x":
                 if sel < first:
                     forget_wad(paths[sel])
@@ -1536,9 +1545,10 @@ def main(argv=None):
     if argv and argv[0] in ("-h", "--help"):
         print("Usage : menuDoom2Nethack.py [WAD]\n\nMenu interactif : "
               "conversion des cartes du WAD (défaut : le dernier utilisé)\n"
-              "et niveaux déjà convertis, rangés dans out/<WAD>/.")
+              "et niveaux déjà convertis, rangés dans out/<WAD>/.\n"
+              f"Un WAD introuvable est cherché dans WAD_DIR ({WAD_DIR}).")
         return 0
-    wad = os.path.abspath(argv[0]) if argv else last_wad()
+    wad = os.path.abspath(find_wad(argv[0])) if argv else last_wad()
     if wad and not os.path.isfile(wad):
         print(f"menuDoom2Nethack : WAD introuvable : {wad}", file=sys.stderr)
         return 1

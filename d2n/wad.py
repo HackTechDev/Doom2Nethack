@@ -1,8 +1,15 @@
 """Lecture des niveaux Doom / Doom II au format WAD « vanilla »."""
 
+import os
 import re
 import struct
 from dataclasses import dataclass, field
+
+# Répertoire des WAD : un WAD introuvable depuis le répertoire courant y est
+# cherché (défaut : ../Doom/Wad, à côté du projet).
+WAD_DIR = os.environ.get("WAD_DIR", os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "Doom", "Wad"))
 
 # Lumps qui suivent le marqueur d'un niveau (MAP01, E1M1...).
 LEVEL_LUMPS = {
@@ -12,6 +19,17 @@ LEVEL_LUMPS = {
 LEVEL_NAME_RE = re.compile(r"^(E\dM\d|MAP\d\d)$")
 
 NO_SIDEDEF = 0xFFFF
+
+
+def find_wad(path, wad_dir=None):
+    """Chemin du WAD `path` : tel quel s'il existe, sinon dans le répertoire
+    des WAD s'il s'y trouve."""
+    wad_dir = WAD_DIR if wad_dir is None else wad_dir
+    path = os.path.expanduser(path)
+    if os.path.isfile(path) or os.path.isabs(path):
+        return path
+    candidate = os.path.join(wad_dir, path)
+    return candidate if os.path.isfile(candidate) else path
 
 
 @dataclass

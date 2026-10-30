@@ -37,13 +37,19 @@ deux modes de conversion, découper un grand niveau, convertir un
   `WIZARDS=` de `~/nh/install/games/lib/nethackdir/sysconf`.
 - Un fichier WAD Doom ou Doom II, par exemple Freedoom.
   `python3 doom2nethack.py --list fichier.wad` liste ses niveaux.
+- Les WAD sont rangés dans le répertoire des WAD (`WAD_DIR`, par défaut
+  `../Doom/Wad`, à côté du projet, soit ici
+  `/home/util01/JEUX/NETHACK/Doom/Wad`). Un WAD introuvable depuis le
+  répertoire courant y est cherché : `freedoom-0.13.0/freedoom1.wad`
+  désigne `$WAD_DIR/freedoom-0.13.0/freedoom1.wad`, d'où qu'on lance
+  les commandes.
 
 ### Un niveau Doom → un niveau NetHack
 
 1. Convertir et installer le niveau :
 
    ```sh
-   ./convertDoom2Nethack.sh ../freedoom-0.13.0/freedoom1.wad E1M1
+   ./convertDoom2Nethack.sh freedoom-0.13.0/freedoom1.wad E1M1
    ```
 
    Le script affiche la carte obtenue et copie `out/freedoom1/e1m1.lua`
@@ -60,7 +66,7 @@ deux modes de conversion, découper un grand niveau, convertir un
    niveaux, `-n 3` l'impose) :
 
    ```sh
-   ./convertDoom2Nethack.sh -n auto ../freedoom-0.13.0/freedoom1.wad E1M1
+   ./convertDoom2Nethack.sh -n auto freedoom-0.13.0/freedoom1.wad E1M1
    ```
 
    Après confirmation, le script déclare la branche « Doom E1M1 » dans
@@ -80,13 +86,13 @@ deux modes de conversion, découper un grand niveau, convertir un
 ### Avec le menu interactif
 
 ```sh
-./menuDoom2Nethack.sh ../freedoom-0.13.0/freedoom1.wad
+./menuDoom2Nethack.sh freedoom-0.13.0/freedoom1.wad
 ```
 
 Le script vérifie que Python 3 et son module `curses` sont présents, puis
 lance `menuDoom2Nethack.py` (qu'on peut aussi lancer directement). Comme
-`convertDoom2Nethack.sh`, il tient compte des variables `HACKDIR` et
-`NETHACK`. Sans argument, le menu reprend le dernier WAD utilisé (ou propose d'en
+`convertDoom2Nethack.sh`, il tient compte des variables `HACKDIR`,
+`NETHACK` et `WAD_DIR`. Sans argument, le menu reprend le dernier WAD utilisé (ou propose d'en
 choisir un). L'interface est en couleurs (8 couleurs standard, thème
 dans `App.init_theme()` de `d2n/tui.py`) ; dans un terminal sans
 couleurs, elle se rabat sur le gras et la vidéo inverse. Il affiche le
@@ -166,7 +172,8 @@ débogage.
 `Choisir un autre WAD` ouvre un explorateur de fichiers. Il
 liste d'abord les 10 derniers WAD utilisés (`x` en retire un de la
 liste, gardée dans `out/.recent-wads.json`), puis le contenu du
-répertoire courant. `/` permet de saisir un chemin (absolu, relatif au
+répertoire du WAD utilisé (sans WAD : le répertoire des WAD). `w` va au
+répertoire des WAD, `/` permet de saisir un chemin (absolu, relatif au
 répertoire affiché ou commençant par `~`), avec complétion par `Tab`.
 `Retirer les branches Doom` lance
 `convertDoom2Nethack.sh --restore` (le script demande confirmation).
@@ -198,6 +205,7 @@ Options :
 
 | Option                  | Rôle                                                  |
 |-------------------------|-------------------------------------------------------|
+| `WAD`                   | fichier WAD, cherché aussi dans `WAD_DIR`             |
 | `-m`, `--map`           | niveau à convertir (défaut : le premier)              |
 | `-o`, `--output`        | fichier de sortie (défaut `out/<wad>/<niveau>.lua` ; `-` : sortie standard) |
 | `-n`, `--parts`         | découpe en N niveaux reliés par des escaliers (`auto`) |
@@ -225,7 +233,8 @@ Options :
   copiée dans HACKDIR, avec les `.lua`. Les originaux sont gardés en
   `*.doom2nethack.orig`. `make install` n'est pas utilisé : il efface
   HACKDIR (parties sauvegardées, `record`, `sysconf`).
-- `NETHACK_SRC`, `HACKDIR` et `OUTDIR` permettent de changer les chemins ;
+- `NETHACK_SRC`, `HACKDIR`, `OUTDIR` et `WAD_DIR` permettent de changer
+  les chemins ;
   les options `--skill`, `--hazards`… sont passées à `doom2nethack.py`.
 
 ## Deux modes de conversion

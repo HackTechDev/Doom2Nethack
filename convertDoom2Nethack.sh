@@ -16,6 +16,7 @@ NETHACK_SRC=${NETHACK_SRC:-/home/sgond/app/Nethack500_Lubuntu2604}
 HACKDIR=${HACKDIR:-$HOME/nh/install/games/lib/nethackdir}
 NETHACK=${NETHACK:-$(dirname "$(dirname "$HACKDIR")")/nethack}
 OUTDIR=${OUTDIR:-$SCRIPT_DIR/out}
+WAD_DIR=${WAD_DIR:-$(dirname "$SCRIPT_DIR")/Doom/Wad}
 export PYTHONPATH="$SCRIPT_DIR${PYTHONPATH:+:$PYTHONPATH}"
 
 usage() {
@@ -24,7 +25,8 @@ Usage : $(basename "$0") [options] WAD [NIVEAU]
         $(basename "$0") --restore [-y]
 
 Convertit le niveau NIVEAU (défaut : le premier) du fichier WAD et
-l'installe dans NetHack pour le tester.
+l'installe dans NetHack pour le tester.  Un WAD introuvable depuis le
+répertoire courant est cherché dans WAD_DIR.
 
 Options :
   -n, --parts N|auto  découper en une branche de N niveaux reliés par des
@@ -40,6 +42,7 @@ Variables d'environnement :
   NETHACK_SRC  sources NetHack   ($NETHACK_SRC)
   HACKDIR      répertoire de jeu ($HACKDIR)
   OUTDIR       fichiers générés  ($OUTDIR/<wad>/)
+  WAD_DIR      répertoire des WAD ($WAD_DIR)
 EOF
 }
 
@@ -114,7 +117,10 @@ if [ "$RESTORE" = 1 ]; then
 fi
 
 [ ${#POS[@]} -ge 1 ] && [ ${#POS[@]} -le 2 ] || { usage >&2; exit 1; }
-WAD=$(realpath "${POS[0]}")
+WAD=${POS[0]}
+[ -f "$WAD" ] || [ "${WAD#/}" != "$WAD" ] || [ ! -f "$WAD_DIR/$WAD" ] ||
+    WAD=$WAD_DIR/$WAD
+WAD=$(realpath "$WAD")
 [ -f "$WAD" ] || die "WAD introuvable : $WAD"
 MAP=${POS[1]:-$(python3 "$SCRIPT_DIR/doom2nethack.py" --list "$WAD" | head -n 1)}
 [ -n "$MAP" ] || die "aucun niveau dans $WAD"

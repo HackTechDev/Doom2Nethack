@@ -8,7 +8,7 @@ import sys
 from d2n.convert import MAX_HEIGHT, MAX_WIDTH, Options, convert
 from d2n.lua_out import dungeon_snippet, to_lua
 from d2n.split import MAX_PARTS, auto_parts, convert_parts
-from d2n.wad import Wad, WadError
+from d2n.wad import Wad, WadError, find_wad
 
 # Répertoire de sortie par défaut (ignoré par git).
 OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
@@ -25,7 +25,8 @@ def parts_arg(value):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("wad", help="fichier WAD (IWAD ou PWAD)")
+    p.add_argument("wad", help="fichier WAD (IWAD ou PWAD), cherché aussi "
+                   "dans le répertoire des WAD (WAD_DIR)")
     p.add_argument("-m", "--map", help="niveau à convertir (MAP01, E1M1...)"
                    " ; par défaut le premier")
     p.add_argument("-o", "--output", help="fichier .lua de sortie pour un "
@@ -65,6 +66,7 @@ def main(argv=None):
                    default="medium",
                    help="difficulté Doom des monstres et objets")
     a = p.parse_args(argv)
+    a.wad = find_wad(a.wad)
 
     if not 3 <= a.width <= MAX_WIDTH or not 3 <= a.height <= MAX_HEIGHT:
         p.error(f"taille maximale {MAX_WIDTH}x{MAX_HEIGHT}")

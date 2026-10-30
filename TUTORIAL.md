@@ -17,19 +17,24 @@ Il vous faut :
 - **le mode wizard autorisé** pour votre compte : votre nom d'utilisateur
   sur la ligne `WIZARDS=` de
   `~/nh/install/games/lib/nethackdir/sysconf` ;
-- **un fichier WAD** : ce tutoriel utilise Freedoom 0.13.0, placé à côté
-  du répertoire du projet, dans `../freedoom-0.13.0` (`freedoom1.wad` :
-  épisodes E1 à E4, `freedoom2.wad` : cartes MAP01 à MAP32).
+- **un fichier WAD** : ce tutoriel utilise Freedoom 0.13.0, rangé dans
+  le répertoire des WAD, `/home/util01/JEUX/NETHACK/Doom/Wad` (par
+  défaut `../Doom/Wad`, à côté du projet) : `freedoom-0.13.0/freedoom1.wad`
+  (épisodes E1 à E4) et `freedoom-0.13.0/freedoom2.wad` (cartes MAP01 à
+  MAP32). Un WAD introuvable depuis le répertoire courant est cherché
+  dans ce répertoire : il suffit d'écrire `freedoom-0.13.0/freedoom1.wad`.
 
 Pour les branches (étape 6), il faut aussi les sources de NetHack
 configurées, par défaut dans `/home/sgond/app/Nethack500_Lubuntu2604`.
 
-Si NetHack est installé ailleurs, indiquez-le avant de lancer le menu :
+Si NetHack ou les WAD sont ailleurs, indiquez-le avant de lancer le
+menu :
 
 ```sh
 export HACKDIR=/chemin/vers/nethackdir     # répertoire de jeu
 export NETHACK=/chemin/vers/nethack        # exécutable
 export NETHACK_SRC=/chemin/vers/sources    # pour les branches
+export WAD_DIR=/chemin/vers/wad            # répertoire des WAD
 ```
 
 ## 1. Lancer le menu
@@ -37,7 +42,7 @@ export NETHACK_SRC=/chemin/vers/sources    # pour les branches
 Depuis le répertoire du projet :
 
 ```sh
-./menuDoom2Nethack.sh ../freedoom-0.13.0/freedoom1.wad
+./menuDoom2Nethack.sh freedoom-0.13.0/freedoom1.wad
 ```
 
 Le menu principal s'ouvre. En haut s'affiche le fichier WAD utilisé ; en
@@ -53,8 +58,8 @@ bas, les touches disponibles dans l'écran courant. Dans tous les menus :
 
 La prochaine fois, `./menuDoom2Nethack.sh` sans argument reprendra ce
 WAD. Pour en changer, choisissez **Choisir un autre WAD** : la liste
-commence par les WAD récents, suivis du contenu du répertoire. `/` permet
-de taper un chemin (`Tab` complète).
+commence par les WAD récents, suivis du contenu du répertoire. `w` va au
+répertoire des WAD, `/` permet de taper un chemin (`Tab` complète).
 
 ## 2. Convertir E1M1
 
@@ -201,14 +206,14 @@ Tout ce que fait le menu existe en ligne de commande :
 
 ```sh
 # lister les cartes d'un WAD
-python3 doom2nethack.py --list ../freedoom-0.13.0/freedoom1.wad
+python3 doom2nethack.py --list freedoom-0.13.0/freedoom1.wad
 
 # convertir E1M1 en mode rooms et afficher la carte
-python3 doom2nethack.py -p --mode rooms -m E1M1 ../freedoom-0.13.0/freedoom1.wad
+python3 doom2nethack.py -p --mode rooms -m E1M1 freedoom-0.13.0/freedoom1.wad
 
 # convertir et installer un niveau, ou une branche
-./convertDoom2Nethack.sh ../freedoom-0.13.0/freedoom1.wad E1M1
-./convertDoom2Nethack.sh -n auto ../freedoom-0.13.0/freedoom1.wad E1M2
+./convertDoom2Nethack.sh freedoom-0.13.0/freedoom1.wad E1M1
+./convertDoom2Nethack.sh -n auto freedoom-0.13.0/freedoom1.wad E1M2
 
 # jouer un niveau installé, ou le premier niveau d'une branche
 python3 -m d2n.play e1m1
@@ -225,6 +230,7 @@ niveau 3, `#wizloaddes` `Entrée` `e1m1` `Entrée` pour charger le niveau,
 |----------|-------------------|
 | NetHack refuse le mode wizard | Votre nom d'utilisateur n'est pas sur la ligne `WIZARDS=` du fichier `sysconf` du répertoire de jeu. |
 | `HACKDIR introuvable` ou `NetHack introuvable` | NetHack n'est pas installé à l'endroit par défaut : définissez `HACKDIR` et `NETHACK` (étape 0). |
+| `WAD introuvable` | Le WAD n'est ni dans le répertoire courant ni dans le répertoire des WAD : donnez son chemin complet, ou définissez `WAD_DIR` (étape 0). |
 | `p` ne va pas au niveau et rend la main | Une question de NetHack attendait encore une réponse, ou les invites ne sont pas reconnues. Faites le chemin à la main (étape 8), ou relancez avec `D2N_PLAY_LOG=/tmp/play.log` pour voir les touches envoyées. |
 | Branche absente du menu de téléportation | La branche n'est pas installée (`i`), ou la partie a été commencée avant son installation : commencez une nouvelle partie. |
 | Pas d'escalier montant au niveau 1 | NetHack n'en crée pas au premier niveau du donjon : chargez le niveau à partir du niveau 2 (le menu utilise le niveau 3). |

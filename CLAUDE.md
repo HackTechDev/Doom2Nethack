@@ -23,20 +23,23 @@ des salles compte. Python 3, bibliothèque standard uniquement.
 
 ```sh
 python3 -m unittest discover -s tests          # tests (~30 s)
-python3 doom2nethack.py -p -m E1M1 ../freedoom-0.13.0/freedoom1.wad
+python3 doom2nethack.py -p -m E1M1 freedoom-0.13.0/freedoom1.wad
 ./menuDoom2Nethack.sh [WAD]                    # menu interactif (curses)
 ./convertDoom2Nethack.sh [-n N|auto] WAD MAP   # convertir et installer
 python3 -m d2n.play [--branch] NIVEAU          # jouer un niveau installé
 ```
 
+Les WAD sont dans le répertoire des WAD (`WAD_DIR`, défaut
+`../Doom/Wad` : `/home/util01/JEUX/NETHACK/Doom/Wad`) ; un WAD introuvable
+depuis le répertoire courant y est cherché (`find_wad()`, `d2n/wad.py`).
 Les tests Freedoom (`TestFreedoom`) supposent Freedoom dans
-`../freedoom-0.13.0` ; ils sont sautés sinon. `tests/make_test_wad.py`
+`$WAD_DIR/freedoom-0.13.0` ; ils sont sautés sinon. `tests/make_test_wad.py`
 construit le petit WAD de test (3 salles, la dernière sombre).
 
 ## Architecture (`d2n/`)
 
 - `wad.py` : lecture des WAD (lumps VERTEXES, LINEDEFS, SIDEDEFS, SECTORS,
-  THINGS).
+  THINGS), répertoire des WAD (`WAD_DIR`, `find_wad()`).
 - `tables.py` : correspondances Doom → NetHack (portes, sorties,
   téléporteurs, monstres, objets, symboles, noms Doom).
 - `convert.py` : `Options` (dataclass passée **par position** par

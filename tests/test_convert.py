@@ -12,7 +12,7 @@ from d2n.convert import Options, convert          # noqa: E402
 from d2n.lua_out import dungeon_snippet, to_lua   # noqa: E402
 from d2n.split import auto_parts, convert_parts, plan  # noqa: E402
 from d2n import tui                               # noqa: E402
-from d2n.wad import Wad                           # noqa: E402
+from d2n.wad import WAD_DIR, Wad, find_wad       # noqa: E402
 import make_test_wad                              # noqa: E402
 
 YADEX_WAD = os.path.join(os.path.dirname(__file__), "..", "..",
@@ -85,6 +85,22 @@ class TestThreeRooms(unittest.TestCase):
         res = convert(self.level, Options(hazards="water"))
         self.assertTrue(any("}" in row for row in res.grid))
         self.assertFalse(any("}" in row for row in convert(self.level).grid))
+
+
+class TestFindWad(unittest.TestCase):
+    def test_find_wad(self):
+        with tempfile.TemporaryDirectory() as d:
+            sub = os.path.join(d, "freedoom")
+            os.mkdir(sub)
+            path = os.path.join(sub, "f1.wad")
+            open(path, "w").close()
+            # nom relatif cherché dans le répertoire des WAD
+            self.assertEqual(find_wad("freedoom/f1.wad", d), path)
+            # chemin existant ou absolu gardé tel quel
+            self.assertEqual(find_wad(path, "/nulle/part"), path)
+            self.assertEqual(find_wad("/x/absent.wad", d), "/x/absent.wad")
+            # introuvable partout : inchangé, pour le message d'erreur
+            self.assertEqual(find_wad("absent.wad", d), "absent.wad")
 
 
 @unittest.skipUnless(os.path.exists(YADEX_WAD), "test.wad de Yadex absent")
@@ -506,8 +522,7 @@ class TestDungeonPatch(unittest.TestCase):
         self.assertEqual(unpatch(both), orig)
 
 
-FREEDOOM = os.path.join(os.path.dirname(__file__), "..", "..",
-                        "freedoom-0.13.0")
+FREEDOOM = os.path.join(WAD_DIR, "freedoom-0.13.0")
 
 
 @unittest.skipUnless(os.path.isdir(FREEDOOM), "Freedoom absent")
