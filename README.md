@@ -6,6 +6,11 @@ seule la disposition des salles est conservée. Voir `ANALYSE.md`.
 
 Le prototype est en Python 3, sans dépendance externe.
 
+Pour débuter : `TUTORIAL.md`, un tutoriel pas à pas avec le menu
+interactif (convertir, regarder et jouer E1M1 de Freedoom, comparer les
+deux modes de conversion, découper un grand niveau, convertir un
+épisode).
+
 ## Charger un niveau Doom dans NetHack
 
 ### Prérequis
