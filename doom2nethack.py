@@ -58,6 +58,9 @@ def main(argv=None):
     p.add_argument("--rooms", type=int, default=0,
                    help="mode rooms : nombre de salles visé par niveau "
                    "(défaut : automatique, 12 au plus)")
+    p.add_argument("--dark-below", type=int, default=144,
+                   help="zones sombres : secteurs dont la lumière Doom "
+                   "(0-255) est inférieure (défaut 144 ; 0 : tout éclairé)")
     p.add_argument("--skill", choices=("easy", "medium", "hard"),
                    default="medium",
                    help="difficulté Doom des monstres et objets")
@@ -66,7 +69,7 @@ def main(argv=None):
     if not 3 <= a.width <= MAX_WIDTH or not 3 <= a.height <= MAX_HEIGHT:
         p.error(f"taille maximale {MAX_WIDTH}x{MAX_HEIGHT}")
     opts = Options(a.width, a.height, a.samples, a.coverage, a.keep_aspect,
-                   a.hazards, a.skill, a.mode, a.rooms)
+                   a.hazards, a.skill, a.mode, a.rooms, a.dark_below)
     try:
         wad = Wad(a.wad)
         names = wad.level_names()
@@ -111,6 +114,12 @@ def main(argv=None):
               f"{res.scale[0]:.0f}x{res.scale[1]:.0f} unités par case, "
               f"{len(res.doors)} porte(s), {len(res.monsters)} monstre(s), "
               f"{len(res.objects)} objet(s)", file=log)
+        floor = sum(row.count(".") + row.count("#") + row.count("+")
+                    for row in res.grid)
+        dark = sum(res.grid[y][x] in ".#+" for x, y in res.dark)
+        if dark:
+            res.info.append(f"{100 * dark // max(floor, 1)} % du sol dans "
+                            "le noir")
         for i in res.info:
             print(f"  info : {i}", file=log)
         for w in res.warnings:

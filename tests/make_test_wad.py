@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Génère un PWAD de test : 3 salles, un pilier, une porte, un couloir
-fin, une flaque de nukage, une sortie et quelques things."""
+"""Génère un PWAD de test : 3 salles (la dernière sombre), un pilier, une
+porte, un couloir fin, une flaque de nukage, une sortie et quelques
+things."""
 
 import struct
 import sys
@@ -20,12 +21,13 @@ class LevelBuilder:
             self.vertices.append(p)
         return self.vindex[p]
 
-    def sector(self, poly, special=0, outer=None, special_lines=0):
+    def sector(self, poly, special=0, outer=None, special_lines=0,
+               light=160):
         """Ajoute un secteur (polygone en sens horaire, y vers le haut).
         Une arête déjà existante dans l'autre sens devient à deux faces ;
         `outer` est le secteur entourant un secteur intérieur."""
         s = len(self.sectors)
-        self.sectors.append(special)
+        self.sectors.append((special, light))
         for a, b in zip(poly, poly[1:] + poly[:1]):
             va, vb = self._v(a), self._v(b)
             if (vb, va) in self.lines:
@@ -62,8 +64,8 @@ class LevelBuilder:
             lines += struct.pack("<HHHHHHH", va, vb, flags, sp, 0, *ids)
         verts = b"".join(struct.pack("<hh", *p) for p in self.vertices)
         secs = b"".join(struct.pack("<hh8s8shHH", 0, 128, b"FLOOR4_8",
-                                    b"CEIL3_5", 160, sp, 0)
-                        for sp in self.sectors)
+                                    b"CEIL3_5", light, sp, 0)
+                        for sp, light in self.sectors)
         things = b"".join(struct.pack("<hhHHH", *t) for t in self.things)
         return [("MAP01", b""), ("THINGS", things), ("LINEDEFS", lines),
                 ("SIDEDEFS", sides), ("VERTEXES", verts), ("SEGS", b""),
@@ -101,7 +103,7 @@ def build():
     # couloir fin (64 unités) vers la salle C
     b.sector([(2048, 1024), (2048, 1536), (2112, 1536), (2112, 1024)])
     b.sector([(1600, 1536), (1600, 2048), (2560, 2048), (2560, 1536),
-              (2112, 1536), (2048, 1536)])
+              (2112, 1536), (2048, 1536)], light=96)     # salle C sombre
     b.set_special((1600, 2048), (2560, 2048), 11)   # sortie
 
     b.thing(200, 100, 1)        # départ joueur

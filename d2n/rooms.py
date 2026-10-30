@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 
 from . import tables
 from .convert import (DOOR, FLOOR, STONE, Converter, Result, bbox_union,
-                      doom_start)
+                      doom_start, with_dark_walls)
 
 CORRIDOR = "#"
 
@@ -54,6 +54,7 @@ class Group:
     cx: float                   # centre Doom (centroïde des secteurs)
     cy: float
     bbox: tuple                 # emprise Doom (x0, y0, x1, y1)
+    light: float = 255          # lumière Doom moyenne (pondérée par l'aire)
     corridor: bool = False
     rect: list = field(default=None)    # intérieur [x0, y0, x1, y1]
 
@@ -178,7 +179,8 @@ class RoomConverter(Converter):
         groups = {}
         for s in gid:
             area, cx, cy, perim = stats[s]
-            groups[s] = Group({s}, area, perim, cx, cy, self.sbbox[s])
+            groups[s] = Group({s}, area, perim, cx, cy, self.sbbox[s],
+                              self.lvl.sectors[s].light)
         # longueur de frontière entre groupes : franchissable / totale
         shared, shared_all = {}, {}
         for sr, sl, length, passable, _ in self.lines:
@@ -194,6 +196,7 @@ class RoomConverter(Converter):
             area = ga.area + gb.area
             ga.cx = (ga.cx * ga.area + gb.cx * gb.area) / area
             ga.cy = (ga.cy * ga.area + gb.cy * gb.area) / area
+            ga.light = (ga.light * ga.area + gb.light * gb.area) / area
             ga.perim += gb.perim - 2 * shared_all.get(key, 0)
             ga.area = area
             ga.sectors |= gb.sectors
@@ -457,10 +460,16 @@ class RoomConverter(Converter):
             for db, ob in self._door_spots(gb, *ca)[:6]:
                 path = self._path(oa, ob)
                 if path:
+                    # un couloir est éclairé comme la moyenne de ses salles
+                    light = (ga.light + gb.light) / 2
                     for x, y in path:
                         self.grid[y][x] = CORRIDOR
+                        self.light[(x, y)] = max(self.light.get((x, y), 0),
+                                                 light)
                     self._add_door(da, state_a)
                     self._add_door(db, state_b)
+                    self.light[da] = max(self.light.get(da, 0), ga.light)
+                    self.light[db] = max(self.light.get(db, 0), gb.light)
                     return True
         return False
 
@@ -564,6 +573,7 @@ class RoomConverter(Converter):
                              "salles")
         self._draw(self.rooms)
         self.doors = {}
+        self.light = {}         # lumière des couloirs et des portes
         failed = 0
         for a, b, state, side in self._links():
             ga, gb = self.groups[a], self.groups[b]
@@ -601,6 +611,13 @@ class RoomConverter(Converter):
         doors = [(x, y, s) for (x, y), s in sorted(self.doors.items())]
         res = Result(self.name, ["".join(r) for r in self.grid], doors,
                      scale=(self.sx, self.sy))
+        dark = {c for c, light in self.light.items()
+                if light < self.opts.dark_below}
+        for g in self.rooms:
+            if g.light < self.opts.dark_below:
+                dark.update((x, y) for y in range(g.rect[1], g.rect[3] + 1)
+                            for x in range(g.rect[0], g.rect[2] + 1))
+        res.dark = with_dark_walls(res.grid, dark)
         ncorr = sum(g.corridor for g in self.groups.values())
         res.info.append(f"{len(self.rooms)} salle(s), {ncorr} couloir(s) "
                         f"Doom, {len(doors)} porte(s) ou ouverture(s)")

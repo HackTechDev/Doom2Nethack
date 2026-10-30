@@ -90,7 +90,8 @@ while [ $# -gt 0 ]; do
     -y|--yes) YES=1 ;;
     --restore) RESTORE=1 ;;
     -h|--help) usage; exit 0 ;;
-    --skill|--hazards|--width|--height|--samples|--coverage|--mode|--rooms)
+    --skill|--hazards|--width|--height|--samples|--coverage|--mode|--rooms|\
+    --dark-below)
         ARGS+=("$1" "${2:?}"); shift ;;
     -*) ARGS+=("$1") ;;
     *) POS+=("$1") ;;

@@ -68,6 +68,17 @@ class TestThreeRooms(unittest.TestCase):
     def test_keep_aspect(self):
         self.check(convert(self.level, Options(keep_aspect=True)))
 
+    def test_lighting(self):
+        res = convert(self.level)
+        # salle C (en haut, lumière 96) sombre, salles A et B éclairées
+        self.assertIn(res.downstair, res.dark)
+        self.assertNotIn(res.upstair, res.dark)
+        self.assertIn('des.region(dark, "unlit")', to_lua(res))
+        self.assertFalse(convert(self.level, Options(dark_below=0)).dark)
+        rooms = convert(self.level, Options(mode="rooms"))
+        self.assertIn(rooms.downstair, rooms.dark)
+        self.assertNotIn(rooms.upstair, rooms.dark)
+
     def test_hazards(self):
         res = convert(self.level, Options(hazards="water"))
         self.assertTrue(any("}" in row for row in res.grid))

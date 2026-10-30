@@ -94,6 +94,7 @@ Options :
 | `--mode`                | `raster` (plan décalqué, défaut) ou `rooms` (salles et couloirs) |
 | `--rooms`               | mode `rooms` : nombre de salles visé (défaut 12)      |
 | `--hazards`             | sols à dégâts : `none` (défaut), `water` ou `lava`    |
+| `--dark-below`          | lumière Doom (0-255) en dessous de laquelle une zone est sombre (144 ; 0 : tout éclairé) |
 | `--skill`               | difficulté des things : `easy`, `medium` (défaut), `hard` |
 
 ## Fonctionnement de convertDoom2Nethack.sh
@@ -182,6 +183,12 @@ directement dans la branche.
 - Escaliers : l'escalier montant est au départ du joueur, l'escalier
   descendant à la sortie (linedefs 11, 51, 52, 124…).
 - Monstres et objets : table de correspondance dans `d2n/tables.py`.
+- Éclairage : le niveau est éclairé, sauf les cases des secteurs dont la
+  lumière Doom est inférieure à `--dark-below` (144 par défaut : les zones
+  tamisées à 128 et moins). En mode `rooms`, une salle prend la lumière
+  moyenne de ses secteurs, et un couloir celle des salles qu'il relie. Les
+  murs qui ne bordent que des cases sombres sont sombres aussi. Les cases
+  sombres sont passées à `des.region(selection, "unlit")`.
 - Toute zone restée isolée (téléporteurs, sols mobiles, rambardes) est
   reliée à la zone principale : tout le niveau est accessible.
 

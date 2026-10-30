@@ -52,9 +52,9 @@ secteurs pourraient devenir des portes secrètes (`S`), et les couloirs qui
 y mènent des couloirs secrets.
 
 ### Éclairage
-Tout le niveau est éclairé. Le niveau de lumière des secteurs Doom
-(`Sector.light`) permettrait de laisser dans le noir les zones sombres
-(lumière < 128), avec `des.region(..., "unlit")` sur les cases concernées.
+Réalisé (`--dark-below`). Pistes : lampes et torches Doom (things) qui
+éclairent leur voisinage ; secteurs clignotants (types spéciaux 1, 2, 3,
+8, 12, 13, 17) rendus par une alternance de cases éclairées et sombres.
 
 ### Things ignorés
 Beaucoup de things sont ignorés (bonus, munitions, décors). Idées :

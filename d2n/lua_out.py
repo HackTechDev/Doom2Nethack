@@ -22,6 +22,13 @@ def to_lua(res, source="", branch=False):
         f"{res.height - 1:02d}), \"lit\");",
         "",
     ]
+    if res.dark:
+        out.append("-- zones sombres (lumière Doom des secteurs)")
+        out.append("local dark = selection.new()")
+        for y, x1, x2 in _runs(res.dark):
+            out.append(f"dark = dark | selection.area({x1:02d},{y:02d},"
+                       f"{x2:02d},{y:02d})")
+        out += ['des.region(dark, "unlit")', ""]
     if res.upstair:
         x, y = res.upstair
         if branch:
@@ -45,6 +52,19 @@ def to_lua(res, source="", branch=False):
         out.append(f'des.object({{ id = "{name}", class = "{cls}", '
                    f'x = {x:02d}, y = {y:02d} }})')
     return "\n".join(out) + "\n"
+
+
+def _runs(cells):
+    """Suites horizontales de cases : (y, x début, x fin)."""
+    runs = []
+    for y in sorted({c[1] for c in cells}):
+        xs = sorted(c[0] for c in cells if c[1] == y)
+        start = xs[0]
+        for a, b in zip(xs, xs[1:] + [None]):
+            if b != a + 1:
+                runs.append((y, start, a))
+                start = b
+    return runs
 
 
 def dungeon_snippet(dungeon_name, level_names):

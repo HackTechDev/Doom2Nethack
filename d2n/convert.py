@@ -27,6 +27,8 @@ class Options:
     skill: str = "medium"       # easy | medium | hard
     mode: str = "raster"        # raster | rooms (salles et couloirs)
     rooms: int = 0              # mode rooms : nombre de salles visé (0 auto)
+    dark_below: int = 144       # lumière Doom en dessous : zone sombre (0 :
+                                # tout éclairé ; 144 assombrit 128 et moins)
 
 
 @dataclass
@@ -42,6 +44,7 @@ class Result:
     scale: tuple = (0.0, 0.0)
     warnings: list = field(default_factory=list)
     info: list = field(default_factory=list)
+    dark: set = field(default_factory=set)          # cases non éclairées
 
     @property
     def width(self):
@@ -427,6 +430,10 @@ class Converter:
 
         res = Result(self.name, ["".join(r) for r in grid], doors,
                      scale=(self.sx, self.sy))
+        res.dark = with_dark_walls(res.grid, {
+            (x, y) for y in range(self.h) for x in range(self.w)
+            if self.sec[y][x] is not None and
+            self.lvl.sectors[self.sec[y][x]].light < self.opts.dark_below})
         self._place_things(res, door_xy)
         res.warnings = self.warnings
         return res
@@ -504,6 +511,23 @@ class Converter:
                     todo.append(c)
         cand = [c for c in dist if c not in busy]
         return max(cand, key=dist.get) if cand else start
+
+
+def with_dark_walls(grid, dark):
+    """Ajoute aux cases sombres les murs qui ne bordent que des cases
+    sombres (un mur voisin d'une case éclairée reste visible)."""
+    out = set(dark)
+    h, w = len(grid), len(grid[0])
+    for y in range(h):
+        for x in range(w):
+            if grid[y][x] not in "-|":
+                continue
+            near = [(i, j) for j in range(max(y - 1, 0), min(y + 2, h))
+                    for i in range(max(x - 1, 0), min(x + 2, w))
+                    if grid[j][i] not in "-| "]
+            if near and all(c in dark for c in near):
+                out.add((x, y))
+    return out
 
 
 def bbox_union(boxes):
