@@ -1,0 +1,54 @@
+# Doom2Nethack
+
+Convertit un niveau Doom / Doom II (fichier WAD, par exemple produit par
+Yadex) en niveau spécial NetHack au format Lua. Les hauteurs sont ignorées :
+seule la disposition des salles est conservée. Voir `ANALYSE.md`.
+
+Le prototype est en Python 3, sans dépendance externe.
+
+## Utilisation
+
+```sh
+python3 doom2nethack.py --list doom2.wad           # niveaux du WAD
+python3 doom2nethack.py -p -m MAP01 doom2.wad      # écrit map01.lua
+python3 doom2nethack.py -p --keep-aspect -o lvl.lua doom2.wad
+```
+
+Options :
+
+| Option                  | Rôle                                                  |
+|-------------------------|-------------------------------------------------------|
+| `-m`, `--map`           | niveau à convertir (défaut : le premier)              |
+| `-o`, `--output`        | fichier de sortie (`-` : sortie standard)             |
+| `-p`, `--preview`       | affiche la carte obtenue                              |
+| `--width`, `--height`   | taille de la carte (max 75 × 19)                      |
+| `--keep-aspect`         | échelle uniforme au lieu d'étirer la carte            |
+| `--samples`             | échantillons par case et par axe (défaut 3)           |
+| `--coverage`            | part d'une case à couvrir pour faire un sol (0.34)    |
+| `--hazards`             | sols à dégâts : `none` (défaut), `water` ou `lava`    |
+
+## Tester dans NetHack
+
+1. Copier le `.lua` produit dans le répertoire de jeu (HACKDIR) d'un NetHack
+   compilé sans DLB.
+2. Lancer `nethack -D` (mode wizard).
+3. Utiliser `#wizloaddes`, puis donner le nom du fichier.
+
+## Ce que fait le prototype
+
+- Rasterisation : chaque case est échantillonnée (3 × 3 par défaut) et
+  rattachée au secteur Doom majoritaire (test point-dans-polygone).
+- Connectivité : deux secteurs reliés par une ligne franchissable dans Doom
+  le sont aussi sur la carte, et un couloir est creusé si besoin.
+- Portes : une porte (`+`) par secteur porte (linedefs 1, 26-28, 31-34,
+  117, 118). Les portes à clé sont verrouillées.
+- Escaliers : l'escalier montant est au départ du joueur, l'escalier
+  descendant à la sortie (linedefs 11, 51, 52, 124…).
+- Monstres et objets : table de correspondance dans `d2n/tables.py`.
+
+## Tests
+
+```sh
+python3 -m unittest discover tests
+python3 tests/make_test_wad.py test3rooms.wad    # WAD de test à 3 salles
+```
