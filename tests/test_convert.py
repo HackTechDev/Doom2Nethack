@@ -199,8 +199,7 @@ class TestSplit(unittest.TestCase):
         self.assertIn('{ name = "map01b", base = 2 }', snippet)
 
 
-NETHACK = os.path.join(os.path.dirname(__file__), "..", "..",
-                       "Nethack500_Lubuntu2604", "include")
+NETHACK = os.path.join(tui.NETHACK_SRC, "include")
 
 
 @unittest.skipUnless(os.path.isdir(NETHACK), "sources NetHack absentes")

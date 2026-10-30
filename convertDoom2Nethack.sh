@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-NETHACK_SRC=${NETHACK_SRC:-/home/sgond/app/Nethack500_Lubuntu2604}
+NETHACK_SRC=${NETHACK_SRC:-$(dirname "$SCRIPT_DIR")/NetHack-5.0.0}
 HACKDIR=${HACKDIR:-$HOME/nh/install/games/lib/nethackdir}
 NETHACK=${NETHACK:-$(dirname "$(dirname "$HACKDIR")")/nethack}
 OUTDIR=${OUTDIR:-$SCRIPT_DIR/out}

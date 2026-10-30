@@ -65,8 +65,10 @@ chaque conversion). Le menu garde aussi `out/.options.json` et
 ## NetHack : précautions
 
 - Installation de l'utilisateur : `~/nh/install/games` (HACKDIR
-  `~/nh/install/games/lib/nethackdir`), sources dans
-  `/home/sgond/app/Nethack500_Lubuntu2604`. Version 5.0 dérivée de 3.7,
+  `~/nh/install/games/lib/nethackdir`), sources dans `NETHACK_SRC`
+  (défaut `../NetHack-5.0.0` : `/home/util01/JEUX/NETHACK/NetHack-5.0.0`).
+  Les tests qui lisent les sources (`TestTui`, `TestTables`,
+  `TestDungeonPatch`) sont sautés sans elles. Version 5.0 dérivée de 3.7,
   traduite en français : les invites et la ligne d'état sont en français
   (`Niv:`, `--Plus--`), à reconnaître en plus de l'anglais.
 - Ne jamais lancer `make install` : il efface HACKDIR (sauvegardes,

@@ -31,8 +31,8 @@ deux modes de conversion, découper un grand niveau, convertir un
 ### Prérequis
 
 - NetHack compilé et installé (par défaut dans `~/nh/install/games`), avec
-  ses sources configurées (`NETHACK_SRC`, par défaut
-  `/home/sgond/app/Nethack500_Lubuntu2604`).
+  ses sources configurées (`NETHACK_SRC`, par défaut `../NetHack-5.0.0`,
+  à côté du projet, soit ici `/home/util01/JEUX/NETHACK/NetHack-5.0.0`).
 - Le mode wizard autorisé : ajouter son nom d'utilisateur à la ligne
   `WIZARDS=` de `~/nh/install/games/lib/nethackdir/sysconf`.
 - Un fichier WAD Doom ou Doom II, par exemple Freedoom.

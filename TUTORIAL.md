@@ -25,7 +25,8 @@ Il vous faut :
   dans ce répertoire : il suffit d'écrire `freedoom-0.13.0/freedoom1.wad`.
 
 Pour les branches (étape 6), il faut aussi les sources de NetHack
-configurées, par défaut dans `/home/sgond/app/Nethack500_Lubuntu2604`.
+configurées, par défaut dans `../NetHack-5.0.0`, à côté du projet (ici
+`/home/util01/JEUX/NETHACK/NetHack-5.0.0`).
 
 Si NetHack ou les WAD sont ailleurs, indiquez-le avant de lancer le
 menu :

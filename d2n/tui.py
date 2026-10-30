@@ -37,8 +37,8 @@ HACKDIR = os.environ.get("HACKDIR", os.path.expanduser(
     "~/nh/install/games/lib/nethackdir"))
 NETHACK = os.environ.get("NETHACK", os.path.join(
     os.path.dirname(os.path.dirname(HACKDIR)), "nethack"))
-NETHACK_SRC = os.environ.get("NETHACK_SRC",
-                             "/home/sgond/app/Nethack500_Lubuntu2604")
+NETHACK_SRC = os.environ.get("NETHACK_SRC", os.path.join(
+    os.path.dirname(PROJECT), "NetHack-5.0.0"))
 DUNGEON_LUA = os.path.join(NETHACK_SRC, "dat", "dungeon.lua")
 META = "doom2nethack.json"
 RECENT_WADS = os.path.join(OUT_DIR, ".recent-wads.json")
