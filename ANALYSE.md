@@ -2,10 +2,10 @@
 
 ## Objectif
 
-Créer un outil qui convertit un niveau Doom (fichier WAD, tel que produit par
-l'éditeur Yadex, `/home/sgond/app/YadexEditor`) en niveau spécial NetHack
-(fichier `.lua` utilisable par la version de NetHack située dans
-`/home/sgond/app/Nethack500_Lubuntu2604`).
+Créer un outil qui convertit un niveau Doom (fichier WAD, tel que produit
+par l'éditeur Yadex, `/home/util01/JEUX/NETHACK/YadexEditor`) en niveau
+spécial NetHack (fichier `.lua` utilisable par la version de NetHack située
+dans `/home/util01/JEUX/NETHACK/NetHack-5.0.0`).
 
 Les hauteurs (sol / plafond) des secteurs Doom sont **ignorées** : seule la
 disposition des salles entre elles (plan vu de dessus) est conservée.
