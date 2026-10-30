@@ -10,6 +10,9 @@ from d2n.lua_out import dungeon_snippet, to_lua
 from d2n.split import MAX_PARTS, auto_parts, convert_parts
 from d2n.wad import Wad, WadError
 
+# Répertoire de sortie par défaut (ignoré par git).
+OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out")
+
 
 def parts_arg(value):
     if value == "auto":
@@ -26,13 +29,14 @@ def main(argv=None):
     p.add_argument("-m", "--map", help="niveau à convertir (MAP01, E1M1...)"
                    " ; par défaut le premier")
     p.add_argument("-o", "--output", help="fichier .lua de sortie pour un "
-                   "seul niveau (défaut : <niveau>.lua ; '-' pour la sortie "
-                   "standard)")
+                   "seul niveau (défaut : out/<niveau>.lua ; '-' pour la "
+                   "sortie standard)")
     p.add_argument("-n", "--parts", type=parts_arg, default=1,
                    help="découper en N niveaux NetHack reliés par des "
                    f"escaliers (1 à {MAX_PARTS}, ou 'auto')")
-    p.add_argument("-d", "--outdir", default=".",
-                   help="répertoire de sortie pour un niveau découpé")
+    p.add_argument("-d", "--outdir",
+                   help="répertoire de sortie pour un niveau découpé "
+                   "(défaut : out/<niveau>)")
     p.add_argument("-l", "--list", action="store_true",
                    help="lister les niveaux du WAD")
     p.add_argument("-p", "--preview", action="store_true",
@@ -77,21 +81,22 @@ def main(argv=None):
     log = sys.stderr if a.output == "-" else sys.stdout
     written = []
     if n == 1:
-        out = a.output or f"{results[0].name.lower()}.lua"
+        out = a.output or os.path.join(OUT_DIR,
+                                       f"{results[0].name.lower()}.lua")
         lua = to_lua(results[0], source)
         if out == "-":
             sys.stdout.write(lua)
         else:
             written.append(_write(out, lua))
     else:
-        os.makedirs(a.outdir, exist_ok=True)
+        outdir = a.outdir or os.path.join(OUT_DIR, level.name.lower())
         for i, res in enumerate(results):
-            written.append(_write(os.path.join(a.outdir, f"{res.name}.lua"),
+            written.append(_write(os.path.join(outdir, f"{res.name}.lua"),
                                   to_lua(res, source, branch=i == 0)))
         snippet = dungeon_snippet(f"Doom {level.name}",
                                   [r.name for r in results])
         written.append(_write(os.path.join(
-            a.outdir, f"{level.name.lower()}-dungeon.lua"), snippet))
+            outdir, f"{level.name.lower()}-dungeon.lua"), snippet))
 
     for res in results:
         if a.preview:
@@ -108,6 +113,7 @@ def main(argv=None):
 
 
 def _write(path, text):
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w") as f:
         f.write(text)
     return path

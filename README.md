@@ -10,9 +10,9 @@ Le prototype est en Python 3, sans dépendance externe.
 
 ```sh
 python3 doom2nethack.py --list doom2.wad           # niveaux du WAD
-python3 doom2nethack.py -p -m MAP01 doom2.wad      # écrit map01.lua
+python3 doom2nethack.py -p -m MAP01 doom2.wad      # écrit out/map01.lua
 python3 doom2nethack.py -p --keep-aspect -o lvl.lua doom2.wad
-python3 doom2nethack.py -p -n auto -m E1M1 -d out freedoom1.wad  # découpage
+python3 doom2nethack.py -p -n auto -m E1M1 freedoom1.wad  # out/e1m1/
 ```
 
 Options :
@@ -20,9 +20,9 @@ Options :
 | Option                  | Rôle                                                  |
 |-------------------------|-------------------------------------------------------|
 | `-m`, `--map`           | niveau à convertir (défaut : le premier)              |
-| `-o`, `--output`        | fichier de sortie (`-` : sortie standard)             |
+| `-o`, `--output`        | fichier de sortie (défaut `out/<niveau>.lua` ; `-` : sortie standard) |
 | `-n`, `--parts`         | découpe en N niveaux reliés par des escaliers (`auto`) |
-| `-d`, `--outdir`        | répertoire de sortie d'un niveau découpé (défaut `.`) |
+| `-d`, `--outdir`        | répertoire d'un niveau découpé (défaut `out/<niveau>`) |
 | `-p`, `--preview`       | affiche la carte obtenue (avec `<` et `>`)            |
 | `--width`, `--height`   | taille de la carte (max 75 × 19)                      |
 | `--keep-aspect`         | échelle uniforme au lieu d'étirer la carte            |
