@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import threading
 from dataclasses import dataclass
 
 from .convert import MAX_HEIGHT, MAX_WIDTH
@@ -188,9 +189,13 @@ def option_text(key, value):
     return str(value)
 
 
-def run_conversion(wad, mapname, opts, outdir=OUT_DIR):
+META_LOCK = threading.Lock()
+
+
+def run_conversion(wad, mapname, opts, outdir=OUT_DIR, started=None):
     """Convertit une carte avec doom2nethack.py.  Retourne (réussite,
-    lignes affichées par la commande)."""
+    lignes affichées par la commande).  `started(proc)` reçoit le
+    processus lancé (pour pouvoir l'arrêter)."""
     d = wad_dir(wad, outdir)
     low = mapname.lower()
     args = conversion_args(opts)
@@ -202,14 +207,102 @@ def run_conversion(wad, mapname, opts, outdir=OUT_DIR):
         key = low
         shutil.rmtree(os.path.join(d, key), ignore_errors=True)
         cmd += ["-n", opts["parts"], "-d", os.path.join(d, key), wad]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode == 0:
-        meta = load_meta(d)
-        meta["wad"] = os.path.abspath(wad)
-        meta.setdefault("levels", {})[key] = {"parts": opts["parts"],
-                                              "args": args}
-        save_meta(d, meta)
-    return r.returncode == 0, (r.stdout + r.stderr).splitlines()
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True)
+    if started:
+        started(proc)
+    out, err = proc.communicate()
+    if proc.returncode == 0:
+        with META_LOCK:
+            meta = load_meta(d)
+            meta["wad"] = os.path.abspath(wad)
+            meta.setdefault("levels", {})[key] = {"parts": opts["parts"],
+                                                  "args": args}
+            save_meta(d, meta)
+    return proc.returncode == 0, (out + err).splitlines()
+
+
+class Jobs:
+    """File de conversions traitées l'une après l'autre en arrière-plan.
+    `version` augmente à chaque changement, pour rafraîchir l'affichage."""
+
+    def __init__(self, outdir=OUT_DIR):
+        self.outdir = outdir
+        self.lock = threading.Lock()
+        self.pending = []           # (wad, carte, options)
+        self.current = None
+        self.proc = None
+        self.thread = None
+        self.results = []           # (wad, carte, réussite, lignes)
+        self.version = 0
+        self.total = self.done = self.failed = 0
+
+    def add(self, wad, name, opts):
+        with self.lock:
+            if (wad, name) in self.queued():
+                return
+            if not self.active():
+                self.total = self.done = self.failed = 0
+            self.pending.append((wad, name, dict(opts)))
+            self.total += 1
+            self.version += 1
+            if self.thread is None:
+                self.thread = threading.Thread(target=self._run, daemon=True)
+                self.thread.start()
+
+    def _run(self):
+        while True:
+            with self.lock:
+                if not self.pending:
+                    self.current = self.proc = self.thread = None
+                    self.version += 1
+                    return
+                job = self.current = self.pending.pop(0)
+                self.version += 1
+            ok, lines = run_conversion(*job, outdir=self.outdir,
+                                       started=self._started)
+            with self.lock:
+                if self.current is job:     # pas arrêtée entre-temps
+                    self.results.append((job[0], job[1], ok, lines))
+                    self.done += 1
+                    self.failed += not ok
+                self.version += 1
+
+    def _started(self, proc):
+        with self.lock:
+            self.proc = proc
+
+    def queued(self):
+        """(wad, carte) en cours ou en attente."""
+        jobs = self.pending + ([self.current] if self.current else [])
+        return [(w, n) for w, n, _ in jobs]
+
+    def active(self):
+        return len(self.pending) + (self.current is not None)
+
+    def state(self, wad, name):
+        if self.current and self.current[:2] == (wad, name):
+            return "conversion..."
+        if (wad, name) in self.queued():
+            return "en attente"
+        return None
+
+    def stop(self):
+        """Abandonne les conversions en attente et celle en cours."""
+        with self.lock:
+            self.total -= len(self.pending)
+            self.pending.clear()
+            if self.current:
+                self.total -= 1
+                self.current = None
+                if self.proc:
+                    self.proc.terminate()
+            self.version += 1
+
+    def wait(self, timeout=None):
+        t = self.thread
+        if t:
+            t.join(timeout)
 
 
 def delete_level(section, level):
@@ -217,15 +310,16 @@ def delete_level(section, level):
         shutil.rmtree(level.path)
     else:
         os.remove(level.path)
-    meta = load_meta(section.path)
-    if meta.get("levels", {}).pop(os.path.basename(level.path), None):
-        save_meta(section.path, meta)
+    with META_LOCK:
+        meta = load_meta(section.path)
+        if meta.get("levels", {}).pop(os.path.basename(level.path), None):
+            save_meta(section.path, meta)
 
 
 def summary_lines(results, error_attr=0):
     """Résumé de plusieurs conversions : (carte, réussite, lignes)."""
     out = []
-    for name, ok, lines in results:
+    for *_, name, ok, lines in results:
         if ok:
             out.append((f"{name:<8} ok", curses.A_BOLD))
             out += [f"    {line.strip()}" for line in lines
@@ -283,8 +377,9 @@ def remember_wad(path):
 
 # --- interface --------------------------------------------------------------
 
-UP = (curses.KEY_UP, "k")
-DOWN = (curses.KEY_DOWN, "j")
+UP = (curses.KEY_UP,)
+DOWN = (curses.KEY_DOWN,)
+JOURNAL = "l"
 ENTER = ("\n", "\r", curses.KEY_ENTER)
 BACK = ("q", "Q", "\x1b")
 
@@ -294,6 +389,8 @@ class App:
         self.scr = scr
         self.wad = wad
         self.opts = dict(DEFAULT_OPTS)
+        self.jobs = Jobs()
+        self.seen = 0               # dernière version de self.jobs affichée
         curses.curs_set(0)
         self.title = curses.A_REVERSE | curses.A_BOLD
         self.section = self.done = self.error = curses.A_BOLD
@@ -320,7 +417,12 @@ class App:
     def header(self, title):
         self.scr.erase()
         w = self.scr.getmaxyx()[1]
+        self.seen = self.jobs.version
+        status = self.jobs_status()
         self.put(0, 0, f" Doom2NetHack : {title}".ljust(w), self.title)
+        if status:
+            self.put(0, max(w - len(status) - 1, len(title) + 18), status,
+                     self.title)
         self.put(1, 1, "Fichier WAD : ", curses.A_BOLD)
         self.put(1, 15, rel(self.wad) if self.wad else "(aucun)")
         return 3
@@ -336,11 +438,35 @@ class App:
         self.footer(text)
         self.scr.refresh()
 
-    def key(self):
+    def jobs_status(self):
+        j = self.jobs
+        if j.active():
+            width = 10
+            fill = width * j.done // max(j.total, 1)
+            name = j.current[1] if j.current else ""
+            return (f"[{'#' * fill}{'.' * (width - fill)}] "
+                    f"{j.done}/{j.total} {name} ")
+        if j.total:
+            failed = f", {j.failed} échec(s)" if j.failed else ""
+            return f"{j.done} conversion(s) terminée(s){failed} · l journal "
+        return ""
+
+    def key(self, wake=False):
+        """Touche pressée.  Avec `wake`, retourne None quand l'état des
+        conversions change, pour redessiner l'écran."""
+        self.scr.timeout(250)
         while True:
-            c = self.scr.get_wch()
-            if c != curses.KEY_RESIZE:
+            try:
+                c = self.scr.get_wch()
+            except curses.error:
+                c = None
+            if c is None:
+                if wake and self.jobs.version != self.seen:
+                    return None
+            elif c != curses.KEY_RESIZE:
                 return c
+            elif wake:
+                return None
 
     def message(self, text):
         self.footer(f"{text}  (une touche pour continuer)")
@@ -352,10 +478,12 @@ class App:
 
     # listes
 
-    def menu(self, title, rows, sel=0, footer="", keys="", info=()):
+    def menu(self, title, rows, sel=0, footer="", keys="", info=(),
+             live=False):
         """`rows` : (texte, sélectionnable, attribut).  Retourne (touche,
         index de la ligne choisie) ; touche "\\n" pour Entrée, "q" pour
-        retour."""
+        retour.  Avec `live`, retourne "refresh" quand l'état des
+        conversions change, pour que l'appelant refasse ses lignes."""
         ok = [i for i, r in enumerate(rows) if r[1]]
         if not ok:
             return "q", None
@@ -379,9 +507,14 @@ class App:
                 else:
                     self.put(y0 + k, 1, f" {text}", attr)
             self.footer(footer)
-            c = self.key()
+            c = self.key(wake=True)
             pos = ok.index(sel)
-            if c in UP:
+            if c is None:
+                if live:
+                    return "refresh", sel
+            elif c == JOURNAL and JOURNAL not in keys:
+                self.journal()
+            elif c in UP:
                 sel = ok[max(pos - 1, 0)]
             elif c in DOWN:
                 sel = ok[min(pos + 1, len(ok) - 1)]
@@ -418,8 +551,12 @@ class App:
             for k, (text, attr) in enumerate(shown[top:top + n]):
                 self.put(y0 + k, 1, text, attr)
             self.footer(footer)
-            c = self.key()
-            if c in UP:
+            c = self.key(wake=True)
+            if c is None:
+                continue
+            if c == JOURNAL and JOURNAL not in keys:
+                self.journal()
+            elif c in UP:
                 top -= 1
             elif c in DOWN:
                 top += 1
@@ -441,13 +578,22 @@ class App:
         while True:
             rows = [("Convertir une carte du WAD", True, 0),
                     ("Niveaux convertis", True, 0),
+                    ("Journal des conversions", True, 0),
                     ("Choisir un autre fichier WAD", True, 0),
                     ("Quitter", True, 0)]
             key, sel = self.menu("menu principal", rows, sel,
-                                 "↑↓ choisir   Entrée valider   q quitter")
-            if key == "q" or sel == 3:
-                return
-            (self.convert_menu, self.converted_menu, self.choose_wad)[sel]()
+                                 "↑↓ choisir   Entrée valider   "
+                                 "l journal   q quitter")
+            if key == "q" or sel == 4:
+                n = self.jobs.active()
+                if not n or self.confirm(f"{n} conversion(s) en cours ou en "
+                                         "attente seront abandonnées. "
+                                         "Quitter ?"):
+                    self.jobs.stop()
+                    return
+                continue
+            (self.convert_menu, self.converted_menu, self.journal,
+             self.choose_wad)[sel]()
 
     def opts_lines(self):
         o = self.opts
@@ -533,6 +679,9 @@ class App:
                     marks.append("converti")
                 if os.path.isdir(os.path.join(d, low)):
                     marks.append("branche")
+                state = self.jobs.state(self.wad, name)
+                if state:
+                    marks.append(state)
                 star = "*" if name in marked else " "
                 rows.append((f"{star} {name:<8} {', '.join(marks)}", True,
                              self.done if marks else 0))
@@ -541,11 +690,13 @@ class App:
                 "conversion", rows, sel,
                 "Entrée convertir   Espace cocher   a tout cocher   q retour\n"
                 "o options   m mode   n découpage   s difficulté   h sols",
-                keys=" ao" + "".join(CYCLES),
+                keys=" ao" + "".join(CYCLES), live=True,
                 info=[f"Destination : {rel(d)}/", *self.opts_lines(),
                       f"{count}{len(names)} carte(s) dans le WAD"])
             if key == "q":
                 return
+            if key == "refresh":
+                continue
             if key == " ":
                 marked ^= {names[sel]}
                 sel = min(sel + 1, len(names) - 1)
@@ -570,69 +721,61 @@ class App:
                             if self.opts["parts"] == "1" else low)
 
     def convert(self, names):
-        """Convertit les cartes `names` ; retourne False si l'utilisateur
-        annule avant la première conversion."""
+        """Ajoute les cartes `names` à la file des conversions ; retourne
+        False si l'utilisateur annule."""
         exist = [n for n in names if os.path.exists(self.target(n))]
         if exist:
             what = rel(self.target(exist[0])) if len(exist) == 1 \
                 else f"{len(exist)} des {len(names)} cartes"
             if not self.confirm(f"{what} : déjà converti. Remplacer ?"):
                 return False
-        results = []
-        self.scr.nodelay(True)
-        try:
-            for i, name in enumerate(names):
-                self.progress(i, len(names), name, results)
-                results.append((name, *run_conversion(self.wad, name,
-                                                      self.opts)))
-                if self.pressed_back():
-                    break
-        finally:
-            self.scr.nodelay(False)
-        if len(names) == 1:
-            name, ok, lines = results[0]
-            if not ok:
-                lines = [(line, self.error) for line in lines]
-            self.pager(f"conversion de {name}" + ("" if ok else " : ÉCHEC"),
-                       lines)
-            return True
-        failed = sum(not ok for _, ok, _ in results)
-        title = f"{len(results)} carte(s) convertie(s)"
-        if failed:
-            title += f", {failed} échec(s)"
-        if len(results) < len(names):
-            title += f", {len(names) - len(results)} abandonnée(s)"
-        self.pager(title, summary_lines(results, self.error))
+        for name in names:
+            self.jobs.add(self.wad, name, self.opts)
         return True
 
-    def pressed_back(self):
-        """Vrai si q ou Échap a été pressé (en mode nodelay)."""
-        try:
-            while True:
-                if self.scr.get_wch() in BACK:
-                    return True
-        except curses.error:
-            return False
-
-    def progress(self, done, total, name, results):
-        y = self.header("conversion en cours")
-        w = self.scr.getmaxyx()[1]
-        width = max(min(w - 20, 60), 10)
-        fill = width * done // total
-        self.put(y, 1, f"[{'#' * fill}{'.' * (width - fill)}] "
-                 f"{done}/{total}", curses.A_BOLD)
-        self.put(y + 2, 1, f"Conversion de {name}...")
-        for k, (n, ok, _) in enumerate(results[-(self.rows_left(y + 4)):]):
-            self.put(y + 4 + k, 3, f"{n:<8} {'ok' if ok else 'ÉCHEC'}",
-                     self.done if ok else self.error)
-        self.footer("q interrompre après la carte en cours")
-        self.scr.refresh()
-
-    def rows_left(self, y):
-        return max(self.scr.getmaxyx()[0] - 1 - y, 1)
+    def journal(self):
+        """Résultats des conversions, les plus récentes d'abord."""
+        sel = 0
+        while True:
+            results = list(reversed(self.jobs.results))
+            rows = []
+            for wad, name, ok, lines in results:
+                carte = next((line.split(" : ", 1)[1] for line in lines
+                              if " : carte " in line), "")
+                rows.append((f"{name:<8} {'ok   ' if ok else 'ÉCHEC'}  "
+                             f"{os.path.basename(wad):<16} {carte}", True,
+                             0 if ok else self.error))
+            waiting = [f"   {n:<8} {self.jobs.state(w, n)}"
+                       for w, n in self.jobs.queued()]
+            info = ["Conversions en cours ou en attente :", *waiting] \
+                if waiting else []
+            if not rows:
+                rows = [("(aucune conversion terminée)", True, 0)]
+            key, sel = self.menu(
+                "journal des conversions", rows, sel,
+                "Entrée détails   r tout résumer   x arrêter les "
+                "conversions   e effacer   q retour",
+                keys="rxe" + JOURNAL, info=info, live=True)
+            if key in ("q", JOURNAL):
+                return
+            if key == "x" and self.jobs.active() and \
+                    self.confirm("Arrêter les conversions en cours et en "
+                                 "attente ?"):
+                self.jobs.stop()
+            elif key == "e":
+                self.jobs.results.clear()
+            elif key == "r" and results:
+                self.pager("résumé des conversions",
+                           summary_lines(results, self.error))
+            elif key == "\n" and results:
+                wad, name, ok, lines = results[sel]
+                if not ok:
+                    lines = [(line, self.error) for line in lines]
+                self.pager(f"conversion de {name}"
+                           + ("" if ok else " : ÉCHEC"), lines)
 
     def converted_menu(self):
-        sel = 0
+        sel, current = 0, None
         while True:
             rows, entries = [], []
             for s in converted_levels():
@@ -650,13 +793,18 @@ class App:
                 return
             index = {i: e for i, e in zip(
                 (i for i, r in enumerate(rows) if r[1]), entries)}
+            sel = next((i for i, (_, lv) in index.items()
+                        if lv.path == current), sel)
             key, sel = self.menu(
                 "niveaux convertis", rows, sel,
                 "Entrée voir   i installer dans NetHack   x supprimer   "
-                "q retour", keys="ix")
+                "q retour", keys="ix", live=True)
             if key == "q":
                 return
             s, lv = index[sel]
+            current = lv.path
+            if key == "refresh":
+                continue
             if key == "\n":
                 key = self.show_level(s, lv)
             if key == "i":

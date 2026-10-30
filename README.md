@@ -74,8 +74,13 @@ choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
   `out/freedoom1/e1m1.lua`, ou `out/freedoom1/e1m1/` pour une branche) et
   affiche le résultat. Les cartes déjà converties sont marquées. `Espace`
   coche des cartes et `a` les coche toutes : `Entrée` les convertit
-  alors l'une après l'autre, avec une barre de progression (`q`
-  interrompt après la carte en cours), puis affiche un résumé. `o` ouvre
+  alors l'une après l'autre. Les conversions se font en arrière-plan : le
+  menu reste utilisable, la barre du haut montre leur progression et les
+  cartes en cours ou en attente sont marquées. `l`, depuis n'importe quel
+  écran, ouvre le journal des conversions : résultat de chacune
+  (`Entrée` : détails, `r` : résumé de toutes), `x` arrête celles en
+  cours et en attente. Quitter le menu les arrête aussi, après
+  confirmation. `o` ouvre
   l'écran des options : mode, découpage (1 à 12 niveaux ou `auto`),
   difficulté, sols à dégâts, seuil de lumière, nombre de salles visé,
   largeur et hauteur de la carte, échelle uniforme et couverture. Les plus

@@ -120,12 +120,10 @@ Ajouter à Yadex une commande « exporter vers NetHack » qui appelle
 
 ### Menu interactif (`menuDoom2Nethack.py`)
 Réalisé dans `d2n/tui.py` : conversion des cartes du WAD dans
-`out/<WAD>/`, une à une ou plusieurs d'un coup (cartes cochées, barre de
-progression) et avec toutes les options de `doom2nethack.py` sauf
+`out/<WAD>/`, une à une ou plusieurs d'un coup (cartes cochées), en
+arrière-plan (barre de progression, journal des conversions) et avec toutes les options de `doom2nethack.py` sauf
 `--samples` (écran d'options), niveaux convertis classés par WAD (aperçu,
 installation, suppression). Pistes pour aller plus loin :
-- convertir en arrière-plan, pour que le menu reste utilisable pendant les
-  conversions longues (grandes cartes en mode `rooms`) ;
 - marquer les niveaux déjà installés dans le répertoire de jeu ou déclarés
   dans `dungeon.lua`, et proposer `--restore` depuis le menu ;
 - lancer NetHack en mode wizard directement sur le niveau choisi ;

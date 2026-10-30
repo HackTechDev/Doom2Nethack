@@ -265,6 +265,24 @@ class TestTui(unittest.TestCase):
         width = int(re.match(r"carte (\d+)x", desc).group(1))
         self.assertLessEqual(width, 60)     # échelle uniforme : plus étroit
 
+    def test_jobs(self):
+        jobs = tui.Jobs(self.out)
+        opts = dict(tui.DEFAULT_OPTS)
+        jobs.add(self.wad, "MAP01", opts)
+        jobs.add(self.wad, "MAP01", opts)               # doublon ignoré
+        jobs.add(self.wad, "E9M9", opts)
+        self.assertEqual(jobs.total, 2)
+        jobs.wait(60)
+        self.assertEqual(jobs.active(), 0)
+        self.assertEqual([(n, ok) for _, n, ok, _ in jobs.results],
+                         [("MAP01", True), ("E9M9", False)])
+        self.assertEqual((jobs.done, jobs.failed), (2, 1))
+        jobs.add(self.wad, "MAP01", dict(opts, parts="2"))
+        jobs.stop()
+        jobs.wait(60)
+        self.assertEqual(len(jobs.results), 2)          # arrêtée : rien
+        self.assertEqual(jobs.active(), 0)
+
     def test_bad_map(self):
         ok, lines = tui.run_conversion(self.wad, "E9M9",
                                        dict(tui.DEFAULT_OPTS), self.out)
