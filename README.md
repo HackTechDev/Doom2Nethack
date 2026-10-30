@@ -33,13 +33,29 @@ Options :
 
 ## Tester dans NetHack
 
-1. Copier le `.lua` produit dans le répertoire de jeu (HACKDIR, par défaut
-   `~/nh/install/games/lib/nethackdir`). Pas besoin de recompiler sans DLB :
-   un fichier absent de l'archive `nhdat` est cherché dans ce répertoire
-   (`dlb_fopen()`, `src/dlb.c`).
-2. Lancer `nethack -D` (mode wizard ; l'utilisateur doit figurer dans
-   `WIZARDS` du fichier `sysconf`).
-3. Utiliser `#wizloaddes`, puis donner le nom du fichier (ex. `map01.lua`).
+`test_level.sh` convertit et installe le niveau, puis indique comment le
+charger :
+
+```sh
+./test_level.sh ../freedoom-0.13.0/freedoom1.wad E1M1          # un niveau
+./test_level.sh -n auto ../freedoom-0.13.0/freedoom1.wad E1M1  # branche
+./test_level.sh --restore                                     # annuler
+```
+
+- Un seul niveau : le `.lua` est copié dans le répertoire de jeu (HACKDIR,
+  par défaut `~/nh/install/games/lib/nethackdir`). Un fichier absent de
+  l'archive `nhdat` y est cherché (`dlb_fopen()`, `src/dlb.c`). Dans le
+  jeu (`nethack -D`, mode wizard : l'utilisateur doit figurer dans
+  `WIZARDS` du `sysconf`) : `Ctrl-V` vers le niveau 3 (au niveau 1, NetHack
+  refuse l'escalier montant), puis `#wizloaddes` et le nom du niveau.
+- Branche (`-n`) : la branche est déclarée dans `dat/dungeon.lua` des
+  sources NetHack (blocs entre marqueurs `doom2nethack:begin/end`, remplacés
+  à chaque exécution), l'archive `nhdat` est reconstruite par `make dlb` et
+  copiée dans HACKDIR, avec les `.lua`. Les originaux sont gardés en
+  `*.doom2nethack.orig`. `make install` n'est pas utilisé : il efface
+  HACKDIR (parties sauvegardées, `record`, `sysconf`).
+- `NETHACK_SRC`, `HACKDIR` et `OUTDIR` permettent de changer les chemins ;
+  les options `--skill`, `--hazards`… sont passées à `doom2nethack.py`.
 
 ## Découpage en plusieurs niveaux
 
@@ -60,7 +76,8 @@ Un grand niveau Doom comprimé sur 75 × 19 cases perd ses détails. Avec
   est ignoré par NetHack (fond de la branche).
 
 Sont produits `<niveau>a.lua`, `<niveau>b.lua`… et `<niveau>-dungeon.lua`,
-qui explique comment déclarer la branche dans `dat/dungeon.lua`. Les
+qui explique comment déclarer la branche dans `dat/dungeon.lua` (ce que fait
+`test_level.sh`, via `python3 -m d2n.dungeon patch|unpatch`). Les
 passages entre morceaux autres que la chaîne sont perdus, et la sortie Doom
 peut ne pas tomber dans le dernier morceau (avertissement).
 

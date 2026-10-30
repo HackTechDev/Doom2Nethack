@@ -1,5 +1,7 @@
 """Écriture d'un niveau spécial NetHack (Lua, cf. dat/*.lua)."""
 
+from .dungeon import branch_block, dungeon_block
+
 
 def to_lua(res, source="", branch=False):
     """`branch` : premier niveau d'une branche ; l'escalier de branche (vers
@@ -47,36 +49,26 @@ def to_lua(res, source="", branch=False):
 
 def dungeon_snippet(dungeon_name, level_names):
     """Extrait à intégrer dans dat/dungeon.lua pour une branche de
-    plusieurs niveaux."""
-    levels = "\n".join(f'         {{ name = "{n}", base = {i} }},'
-                       for i, n in enumerate(level_names, 1))
+    plusieurs niveaux (test_level.sh le fait automatiquement)."""
+    branch = "".join("-- " + line + "\n" for line in
+                     branch_block(dungeon_name).rstrip("\n").split("\n"))
+    files = ", ".join(n + ".lua" for n in level_names)
     return f"""\
 -- Branche « {dungeon_name} » générée par Doom2Nethack.
+-- (test_level.sh fait toutes ces étapes automatiquement.)
 --
 -- 1) Dans dat/dungeon.lua, ajouter à la liste `branches` de
 --    « The Dungeons of Doom » (escalier descendant vers la branche,
 --    entre les niveaux 2 et 4) :
 --
---       {{
---          name = "{dungeon_name}",
---          base = 2,
---          range = 3
---       }},
---
+{branch}--
 -- 2) Ajouter ce donjon à la liste `dungeon` (par exemple juste avant
 --    « Fort Ludios ») :
 
-   {{
-      name = "{dungeon_name}",
-      base = {len(level_names)},
-      flags = {{ "mazelike" }},
-      levels = {{
-{levels}
-      }}
-   }},
-
--- 3) Recompiler et réinstaller (make install) : dungeon.lua fait partie
---    de l'archive nhdat.
--- 4) Copier ensuite {', '.join(n + '.lua' for n in level_names)}
---    dans HACKDIR (make install recrée ce répertoire).
+{dungeon_block(dungeon_name, level_names)}
+-- 3) Reconstruire l'archive nhdat, dont dungeon.lua fait partie
+--    (make dlb dans les sources NetHack), et copier dat/nhdat dans
+--    HACKDIR.  Éviter make install, qui efface HACKDIR (sauvegardes,
+--    record, sysconf).
+-- 4) Copier {files} dans HACKDIR.
 """

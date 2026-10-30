@@ -148,6 +148,27 @@ class TestTables(unittest.TestCase):
             self.assertIn(f'("{name}"', objects)
 
 
+DUNGEON_LUA = os.path.join(NETHACK, "..", "dat", "dungeon.lua")
+
+
+@unittest.skipUnless(os.path.exists(DUNGEON_LUA), "dungeon.lua absent")
+class TestDungeonPatch(unittest.TestCase):
+    def test_patch_unpatch(self):
+        from d2n.dungeon import patch, unpatch
+        with open(DUNGEON_LUA) as f:
+            orig = f.read()
+        once = patch(orig, "Doom E1M1", ["e1m1a", "e1m1b"])
+        self.assertEqual(patch(once, "Doom E1M1", ["e1m1a", "e1m1b"]), once)
+        self.assertIn('{ name = "e1m1b", base = 2 }', once)
+        # la branche est déclarée dans les Dungeons of Doom
+        main = once.index('name = "The Dungeons of Doom"')
+        gnomes = once.index('name = "The Gnomish Mines"')
+        self.assertTrue(main < once.index('name = "Doom E1M1"') < gnomes)
+        both = patch(once, "Doom MAP01", ["map01a"])
+        self.assertEqual(unpatch(both, "Doom MAP01"), once)
+        self.assertEqual(unpatch(both), orig)
+
+
 FREEDOOM = os.path.join(os.path.dirname(__file__), "..", "..",
                         "freedoom-0.13.0")
 
