@@ -118,6 +118,24 @@ Gérer les formats Boom (types de linedefs génériques), Hexen et UDMF
 Ajouter à Yadex une commande « exporter vers NetHack » qui appelle
 `doom2nethack.py` sur le niveau en cours, avec l'aperçu de la carte.
 
+### Menu interactif (`menuDoom2Nethack.py`)
+Réalisé dans `d2n/tui.py` : conversion des cartes du WAD dans
+`out/<WAD>/`, niveaux convertis classés par WAD (aperçu, installation,
+suppression). Pistes pour aller plus loin :
+- convertir toutes les cartes du WAD d'un coup (sélection multiple), avec
+  une barre de progression ;
+- régler les autres options (`--rooms`, `--width`, `--height`,
+  `--keep-aspect`, `--coverage`) et un seuil de lumière libre ;
+- convertir en arrière-plan, pour que le menu reste utilisable pendant les
+  conversions longues (grandes cartes en mode `rooms`) ;
+- marquer les niveaux déjà installés dans le répertoire de jeu ou déclarés
+  dans `dungeon.lua`, et proposer `--restore` depuis le menu ;
+- lancer NetHack en mode wizard directement sur le niveau choisi ;
+- afficher l'aperçu en couleurs (murs, portes, eau, zones sombres,
+  monstres) et comparer côte à côte deux conversions de la même carte ;
+- garder une liste des WAD récents, et saisir un chemin au clavier dans
+  l'explorateur de fichiers.
+
 ### Aperçu graphique
 Un aperçu HTML superposant le plan Doom (linedefs) et la grille NetHack
 aiderait à régler `--coverage`, `--samples` et le découpage.

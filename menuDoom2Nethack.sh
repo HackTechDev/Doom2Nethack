@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Lance le menu interactif de Doom2Nethack (menuDoom2Nethack.py).
+#
+#   ./menuDoom2Nethack.sh [WAD]
+#
+# Sans WAD, le menu reprend le dernier fichier utilisé, ou propose d'en
+# choisir un.  Les variables HACKDIR et NETHACK (répertoire de jeu et
+# exécutable NetHack) sont transmises au menu, comme pour
+# convertDoom2Nethack.sh.
+
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+
+die() { echo "menuDoom2Nethack.sh : $*" >&2; exit 1; }
+
+case "${1:-}" in
+-h|--help)
+    cat <<EOF
+Usage : $(basename "$0") [WAD]
+
+Menu interactif : conversion des cartes du fichier WAD (défaut : le
+dernier utilisé) et niveaux déjà convertis, rangés dans out/<WAD>/.
+EOF
+    exit 0 ;;
+esac
+[ $# -le 1 ] || die "un seul fichier WAD attendu (voir --help)"
+[ $# -eq 0 ] || [ -f "$1" ] || die "WAD introuvable : $1"
+
+command -v python3 > /dev/null || die "python3 introuvable"
+python3 -c "import curses" 2> /dev/null ||
+    die "module Python curses absent (paquet python3 de la distribution)"
+[ -t 0 ] && [ -t 1 ] || die "un terminal est nécessaire"
+
+# Le chemin du WAD reste relatif au répertoire courant : pas de cd.
+exec python3 "$SCRIPT_DIR/menuDoom2Nethack.py" "$@"

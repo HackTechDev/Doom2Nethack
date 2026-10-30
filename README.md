@@ -60,10 +60,13 @@ Le prototype est en Python 3, sans dépendance externe.
 ### Avec le menu interactif
 
 ```sh
-./menuDoom2Nethack.py ../freedoom-0.13.0/freedoom1.wad
+./menuDoom2Nethack.sh ../freedoom-0.13.0/freedoom1.wad
 ```
 
-Sans argument, le menu reprend le dernier WAD utilisé (ou propose d'en
+Le script vérifie que Python 3 et son module `curses` sont présents, puis
+lance `menuDoom2Nethack.py` (qu'on peut aussi lancer directement). Comme
+`convertDoom2Nethack.sh`, il tient compte des variables `HACKDIR` et
+`NETHACK`. Sans argument, le menu reprend le dernier WAD utilisé (ou propose d'en
 choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
 
 - **Convertir une carte du WAD** : liste les cartes du WAD ; `Entrée`
