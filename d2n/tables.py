@@ -94,3 +94,25 @@ SYMBOLS = {
     "horned devil": "&", "barbed devil": "&", "lich": "L",
     "pit fiend": "&", "balrog": "&",
 }
+
+# Noms Doom des things de MONSTERS et OBJECTS (aperçu des cartes).
+DOOM_NAMES = {
+    3004: "zombieman", 9: "shotgun guy", 3001: "imp", 3006: "lost soul",
+    84: "SS", 65: "chaingunner", 3002: "demon", 58: "spectre",
+    3005: "cacodemon", 71: "pain elemental", 66: "revenant",
+    68: "arachnotron", 67: "mancubus", 69: "hell knight",
+    3003: "baron of hell", 64: "arch-vile", 7: "spider mastermind",
+    16: "cyberdemon",
+    2011: "stimpack", 2012: "medikit", 2013: "soulsphere",
+    2018: "armure verte", 2019: "armure bleue", 2005: "tronçonneuse",
+    2001: "fusil à pompe", 82: "super fusil à pompe",
+    2002: "mitrailleuse", 2003: "lance-roquettes", 2004: "fusil à plasma",
+    2006: "BFG9000", 5: "carte bleue", 6: "carte jaune", 13: "carte rouge",
+    38: "crâne rouge", 39: "crâne jaune", 40: "crâne bleu",
+}
+
+
+def doom_sources(table, value):
+    """Noms Doom des things que `table` convertit en `value`."""
+    return [DOOM_NAMES[t] for t, v in table.items()
+            if v == value and t in DOOM_NAMES]

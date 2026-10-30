@@ -88,8 +88,10 @@ choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
   (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts. `c`
   compare la conversion enregistrée de la carte (A) à une conversion
   avec les options actuelles (B), non enregistrée : côte à côte si le
-  terminal fait au moins 160 colonnes, sinon l'une après l'autre (`Tab`).
-  `g` garde B à la place de A.
+  terminal fait au moins 160 colonnes, sinon l'une après l'autre
+  (`Espace`). Le curseur est commun aux deux cartes, ce qui montre ce que
+  devient une même case d'une conversion à l'autre. `g` garde B à la
+  place de A.
 - **Niveaux convertis** : les niveaux de `out/`, classés par section, une
   par fichier WAD. Chaque niveau indique s'il est installé dans NetHack :
   copié dans le répertoire de jeu (et identique), et, pour une branche,
@@ -97,9 +99,15 @@ choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
   fichier copié diffère, par exemple une carte du même nom d'un autre
   WAD). `Entrée` affiche la carte en couleurs (murs, portes en jaune, eau
   en bleu, lave en rouge, escaliers, monstres en rouge — soulignés s'ils
-  sont invisibles —, objets en cyan, zones sombres grisées ; `←` `→` :
-  niveaux d'une branche), `i`
-  l'installe dans NetHack, `x` la supprime, `p` lance NetHack en mode
+  sont invisibles —, objets en cyan, zones sombres grisées ;
+  `Page↑` `Page↓` : niveaux d'une branche). Un curseur se déplace avec
+  les flèches (`Maj` + flèche : 8 cases) ; `Tab` et `Maj-Tab` sautent au
+  monstre ou à l'objet suivant ou précédent. Au-dessus de la carte
+  s'affiche la case sous le curseur : monstre NetHack (invisible,
+  endormi) et monstre Doom d'origine, objet et objet Doom d'origine,
+  escalier, terrain, état de la porte, zone sombre. Par exemple :
+  `(50,12) monstre : wolf (invisible) ← Doom : spectre — sur : sol`.
+  `i` l'installe dans NetHack, `x` la supprime, `p` lance NetHack en mode
   wizard directement sur le niveau (voir ci-dessous). Un niveau simple
   est copié dans le répertoire de jeu ; une branche est installée par
   `convertDoom2Nethack.sh` avec les options de sa conversion (gardées dans

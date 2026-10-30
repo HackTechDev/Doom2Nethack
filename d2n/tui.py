@@ -26,7 +26,7 @@ from .convert import MAX_HEIGHT, MAX_WIDTH
 from .dungeon import declared
 from .play import play
 from .split import MAX_PARTS
-from .tables import SYMBOLS
+from .tables import MONSTERS, OBJECTS, SYMBOLS, doom_sources
 from .wad import Wad, WadError
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -378,9 +378,10 @@ class LevelView:
     grid: list          # lignes de des.map
     dark: set           # cases sombres
     stairs: dict        # (x, y) -> "<" ou ">"
-    monsters: dict      # (x, y) -> (nom, invisible)
+    monsters: dict      # (x, y) -> (nom, invisible, endormi)
     objects: dict       # (x, y) -> (classe, nom)
-    doors: int
+    doors: dict         # (x, y) -> état de la porte
+    branch: tuple = None    # escalier de branche (remplace "<")
 
     @property
     def width(self):
@@ -388,7 +389,8 @@ class LevelView:
 
     @property
     def desc(self):
-        return (f"carte {self.width}x{len(self.grid)}, {self.doors} porte(s), "
+        return (f"carte {self.width}x{len(self.grid)}, "
+                f"{len(self.doors)} porte(s), "
                 f"{len(self.monsters)} monstre(s), "
                 f"{len(self.objects)} objet(s), {len(self.dark)} case(s) "
                 f"sombre(s)")
@@ -399,18 +401,63 @@ class LevelView:
         if (x, y) in self.stairs:
             return self.stairs[x, y], "stair"
         if (x, y) in self.monsters:
-            name, invisible = self.monsters[x, y]
+            name, invisible, _ = self.monsters[x, y]
             return SYMBOLS.get(name, "M"), "invisible" if invisible \
                 else "monster"
         if (x, y) in self.objects:
             return self.objects[x, y][0], "object"
+        return self.terrain(x, y)
+
+    def terrain(self, x, y):
         row = self.grid[y] if y < len(self.grid) else ""
         c = row[x] if x < len(row) else " "
         return c, TERRAIN.get(c, "floor")
 
+    def describe(self, x, y):
+        """Description de la case : monstre, objet, escalier, terrain."""
+        what = []
+        if (x, y) in self.monsters:
+            name, invisible, asleep = self.monsters[x, y]
+            state = [s for s, on in (("invisible", invisible),
+                                     ("endormi", asleep)) if on]
+            doom = doom_sources(MONSTERS, (name, invisible))
+            what.append(f"monstre : {name}"
+                        + (f" ({', '.join(state)})" if state else "")
+                        + (f" ← Doom : {', '.join(doom)}" if doom else ""))
+        if (x, y) in self.objects:
+            cls, name = self.objects[x, y]
+            full = {"!": f"potion of {name}", "/": f"wand of {name}"}.get(
+                cls, name)
+            doom = doom_sources(OBJECTS, (cls, name))
+            what.append(f"objet : {full}"
+                        + (f" ← Doom : {', '.join(doom)}" if doom else ""))
+        if (x, y) in self.stairs:
+            what.append("escalier de branche" if (x, y) == self.branch else
+                        "escalier montant" if self.stairs[x, y] == "<" else
+                        "escalier descendant")
+        c, kind = self.terrain(x, y)
+        ground = TERRAIN_NAMES.get(kind, kind)
+        if kind == "door":
+            state = self.doors.get((x, y))
+            ground += f" ({DOOR_NAMES.get(state, state)})" if state else ""
+        if (x, y) in self.dark:
+            ground += ", zone sombre"
+        what.append(("sur : " if what else "") + ground)
+        return f"({x:02d},{y:02d}) " + " — ".join(what)
+
+    def points(self):
+        """Cases des monstres et objets, dans l'ordre de lecture."""
+        return sorted(set(self.monsters) | set(self.objects),
+                      key=lambda p: (p[1], p[0]))
+
 
 TERRAIN = {"-": "wall", "|": "wall", " ": "rock", "+": "door", "#": "corridor",
            "}": "water", "L": "lava", "F": "bars", "S": "door"}
+TERRAIN_NAMES = {"wall": "mur", "rock": "roche", "door": "porte",
+                 "corridor": "couloir", "floor": "sol", "water": "eau",
+                 "lava": "lave", "bars": "barreaux de fer"}
+DOOR_NAMES = {"closed": "fermée", "locked": "verrouillée", "open": "ouverte",
+              "nodoor": "sans porte", "broken": "cassée"}
 
 
 def parse_lua(path):
@@ -418,12 +465,14 @@ def parse_lua(path):
         text = f.read()
     m = re.search(r"map = \[\[\n(.*?)\n\]\]", text, re.S)
     grid = m.group(1).split("\n") if m else []
-    stairs = {}
+    stairs, branch = {}, None
     for c, pattern in (("<", r'des\.stair\("up", (\d+),(\d+)\)'),
-                       ("<", r"region = \{(\d+),(\d+),"),
+                       ("b", r"region = \{(\d+),(\d+),"),
                        (">", r'des\.stair\("down", (\d+),(\d+)\)')):
         for x, y in re.findall(pattern, text):
-            stairs[int(x), int(y)] = c
+            if c == "b":
+                branch = int(x), int(y)
+            stairs[int(x), int(y)] = "<" if c == "b" else c
     dark = set()
     for x1, y, x2 in re.findall(r"dark = dark \| selection\.area\((\d+),(\d+),"
                                 r"(\d+),\d+\)", text):
@@ -433,12 +482,13 @@ def parse_lua(path):
         m = re.search(r'id = "([^"]+)", x = (\d+), y = (\d+)', line)
         if m:
             monsters[int(m.group(2)), int(m.group(3))] = \
-                (m.group(1), "invisible = 1" in line)
+                (m.group(1), "invisible = 1" in line, "asleep = 1" in line)
     objects = {(int(x), int(y)): (cls, name) for name, cls, x, y in
                re.findall(r'des\.object\(\{ id = "([^"]+)", class = "(.)", '
                           r'x = (\d+), y = (\d+)', text)}
-    return LevelView(grid, dark, stairs, monsters, objects,
-                     text.count("des.door("))
+    doors = {(int(x), int(y)): state for state, x, y in
+             re.findall(r'des\.door\("(\w+)", (\d+),(\d+)\)', text)}
+    return LevelView(grid, dark, stairs, monsters, objects, doors, branch)
 
 
 def lua_summary(path):
@@ -993,8 +1043,9 @@ class App:
             elif key == "x" and self.confirm(f"Supprimer {rel(lv.path)} ?"):
                 delete_level(s, lv)
 
-    def draw_map(self, y, x, view):
-        """Dessine la carte en couleurs ; retourne la ligne suivante."""
+    def draw_map(self, y, x, view, cursor=None):
+        """Dessine la carte en couleurs, avec la case `cursor` en vidéo
+        inverse ; retourne la ligne suivante."""
         for j in range(len(view.grid)):
             for i in range(view.width):
                 c, kind = view.cell(i, j)
@@ -1002,9 +1053,43 @@ class App:
                 if (i, j) in view.dark and kind in ("floor", "corridor",
                                                     "door", "wall"):
                     attr |= curses.A_DIM
-                if c != " ":
+                if (i, j) == cursor:
+                    self.put(y + j, x + i, c, attr | curses.A_REVERSE)
+                elif c != " ":
                     self.put(y + j, x + i, c, attr)
         return y + len(view.grid)
+
+    @staticmethod
+    def start_cursor(view):
+        return view.branch or next(
+            (p for p, c in view.stairs.items() if c == "<"),
+            (view.width // 2, len(view.grid) // 2))
+
+    @staticmethod
+    def move_cursor(c, cursor, view):
+        """Nouvelle position du curseur pour la touche `c` (None si ce
+        n'est pas une touche de déplacement) : flèches (Maj : 8 cases),
+        Tab / Maj-Tab : monstre ou objet suivant / précédent."""
+        steps = {curses.KEY_LEFT: (-1, 0), curses.KEY_RIGHT: (1, 0),
+                 curses.KEY_UP: (0, -1), curses.KEY_DOWN: (0, 1),
+                 curses.KEY_SLEFT: (-8, 0), curses.KEY_SRIGHT: (8, 0),
+                 curses.KEY_SR: (0, -8), curses.KEY_SF: (0, 8)}
+        x, y = cursor
+        if c in steps:
+            dx, dy = steps[c]
+            return (min(max(x + dx, 0), max(view.width - 1, 0)),
+                    min(max(y + dy, 0), max(len(view.grid) - 1, 0)))
+        if c in ("\t", curses.KEY_BTAB):
+            points = view.points()
+            if not points:
+                return cursor
+            key = (y, x)
+            if c == "\t":
+                return next((p for p in points if (p[1], p[0]) > key),
+                            points[0])
+            return next((p for p in reversed(points) if (p[1], p[0]) < key),
+                        points[-1])
+        return None
 
     def legend(self, y, x=1):
         items = [("|", "wall", "mur"), ("+", "door", "porte"),
@@ -1021,25 +1106,32 @@ class App:
             x += len(c) + len(label) + 3
 
     def show_level(self, section, level):
-        i = 0
+        i, view, cursor = 0, None, None
         while True:
             path = level.parts[i]
-            view = parse_lua(path)
+            if view is None:
+                view = parse_lua(path)
+                cursor = self.start_cursor(view)
             part = f"niveau {i + 1}/{len(level.parts)} : " \
                 if level.split else ""
             y = self.header(f"{section.name} / {level.name}")
             self.put(y, 1, f"{part}{rel(path)}", curses.A_BOLD)
             self.put(y + 1, 1, view.desc)
-            y = self.draw_map(y + 3, 1, view)
+            self.put(y + 2, 1, view.describe(*cursor), self.section)
+            y = self.draw_map(y + 4, 1, view, cursor)
             self.legend(y + 1)
-            nav = "←→ niveau   " if level.split else ""
-            self.footer(f"{nav}p jouer   i installer   x supprimer   "
+            nav = "Page↑↓ niveau   " if level.split else ""
+            self.footer(f"flèches curseur   Tab monstre ou objet suivant   "
+                        f"{nav}p jouer   i installer   x supprimer   "
                         "q retour")
             c = self.key(wake=True)
-            if c == curses.KEY_LEFT:
-                i = max(i - 1, 0)
-            elif c == curses.KEY_RIGHT:
-                i = min(i + 1, len(level.parts) - 1)
+            moved = self.move_cursor(c, cursor, view)
+            if moved:
+                cursor = moved
+            elif c in (curses.KEY_PPAGE, curses.KEY_NPAGE):
+                n = i + (1 if c == curses.KEY_NPAGE else -1)
+                if 0 <= n < len(level.parts):
+                    i, view = n, None
             elif c in ("p", "i", "x"):
                 return c
             elif c in BACK or c in ENTER:
@@ -1083,12 +1175,15 @@ class App:
 
     def compare_view(self, name, sides):
         """Deux conversions côte à côte (l'une après l'autre si l'écran est
-        trop étroit) ; retourne "g" pour garder la seconde, ou "q"."""
-        i, shown = 0, 0
+        trop étroit), avec un même curseur ; retourne "g" pour garder la
+        seconde, ou "q"."""
+        i, shown, views, cursor = 0, 0, None, None
         n = max(len(parts) for *_, parts in sides)
         while True:
-            views = [parse_lua(parts[min(i, len(parts) - 1)])
-                     for *_, parts in sides]
+            if views is None:
+                views = [parse_lua(parts[min(i, len(parts) - 1)])
+                         for *_, parts in sides]
+                cursor = cursor or self.start_cursor(views[0])
             w = self.scr.getmaxyx()[1]
             width = max(v.width for v in views) + 3
             both = w >= 2 * width + 1
@@ -1104,17 +1199,24 @@ class App:
                          curses.A_BOLD)
                 self.put(y + 1, x, args[:cut])
                 self.put(y + 2, x, view.desc[:cut])
-                end = self.draw_map(y + 4, x, view)
+                self.put(y + 3, x, view.describe(*cursor)[:cut],
+                         self.section)
+                end = self.draw_map(y + 5, x, view, cursor)
             self.legend(end + 1)
-            nav = "←→ niveau   " if n > 1 else ""
-            other = "Tab A/B   " if not both else ""
-            self.footer(f"{nav}{other}g garder B (remplace A)   q retour")
+            nav = "Page↑↓ niveau   " if n > 1 else ""
+            other = "Espace A/B   " if not both else ""
+            self.footer(f"flèches curseur   Tab monstre ou objet suivant   "
+                        f"{nav}{other}g garder B (remplace A)   q retour")
             c = self.key(wake=True)
-            if c == curses.KEY_LEFT:
-                i = max(i - 1, 0)
-            elif c == curses.KEY_RIGHT:
-                i = min(i + 1, n - 1)
-            elif c == "\t":
+            moved = self.move_cursor(c, cursor, views[shown if not both
+                                                      else 0])
+            if moved:
+                cursor = moved
+            elif c in (curses.KEY_PPAGE, curses.KEY_NPAGE):
+                m = i + (1 if c == curses.KEY_NPAGE else -1)
+                if 0 <= m < n:
+                    i, views = m, None
+            elif c == " ":
                 shown = 1 - shown
             elif c == "g":
                 return c

@@ -124,14 +124,13 @@ Réalisé dans `d2n/tui.py` : conversion des cartes du WAD dans
 arrière-plan (barre de progression, journal des conversions) et avec toutes les options de `doom2nethack.py` sauf
 `--samples` (écran d'options), niveaux convertis classés par WAD (aperçu,
 installation, suppression, état dans NetHack, lancement de NetHack sur le
-niveau), aperçu en couleurs, comparaison côte à côte de deux conversions
+niveau), aperçu en couleurs avec description de la case sous le curseur
+(monstre ou objet NetHack et son origine Doom), comparaison côte à côte de deux conversions
 d'une carte, retrait des branches Doom (`--restore`), WAD récents et
 saisie d'un chemin avec complétion. Pistes pour aller plus loin :
 - garder les options de conversion d'une session à l'autre ;
 - comparer deux conversions enregistrées (deux WAD, ou niveau simple et
   branche d'une même carte) ;
-- montrer dans l'aperçu le nom d'un monstre ou d'un objet sous le
-  curseur.
 
 ### Aperçu graphique
 Un aperçu HTML superposant le plan Doom (linedefs) et la grille NetHack

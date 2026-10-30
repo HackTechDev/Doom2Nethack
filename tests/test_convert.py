@@ -356,6 +356,33 @@ class TestTui(unittest.TestCase):
                          ("Mon ", ["Mon Wad.wad", "Mon dossier"]))
         self.assertEqual(tui.complete_path("zz", self.tmp.name), ("zz", []))
 
+    def test_describe_and_cursor(self):
+        from d2n.tables import doom_sources, MONSTERS
+        self.assertEqual(doom_sources(MONSTERS, ("soldier", False)),
+                         ["SS", "chaingunner"])
+        self.assertEqual(doom_sources(MONSTERS, ("wolf", True)), ["spectre"])
+        view = tui.LevelView(
+            grid=["-----", "|...|", "|.+.|", "-----"], dark={(3, 1)},
+            stairs={(1, 1): "<"}, monsters={(3, 1): ("imp", False, True)},
+            objects={(1, 2): ("!", "healing")}, doors={(2, 2): "locked"})
+        self.assertEqual(view.describe(3, 1),
+                         "(03,01) monstre : imp (endormi) ← Doom : imp — "
+                         "sur : sol, zone sombre")
+        self.assertEqual(view.describe(1, 2), "(01,02) objet : potion of "
+                         "healing ← Doom : stimpack — sur : sol")
+        self.assertEqual(view.describe(2, 2), "(02,02) porte (verrouillée)")
+        self.assertEqual(view.describe(1, 1),
+                         "(01,01) escalier montant — sur : sol")
+        move = tui.App.move_cursor
+        self.assertEqual(tui.App.start_cursor(view), (1, 1))
+        self.assertEqual(move("\t", (1, 1), view), (3, 1))
+        self.assertEqual(move("\t", (3, 1), view), (1, 2))
+        self.assertEqual(move("\t", (1, 2), view), (3, 1))   # boucle
+        self.assertEqual(move(tui.curses.KEY_BTAB, (3, 1), view), (1, 2))
+        self.assertEqual(move(tui.curses.KEY_LEFT, (0, 0), view), (0, 0))
+        self.assertEqual(move(tui.curses.KEY_SRIGHT, (0, 0), view), (4, 0))
+        self.assertIsNone(move("p", (0, 0), view))
+
     def test_bad_map(self):
         ok, lines = tui.run_conversion(self.wad, "E9M9",
                                        dict(tui.DEFAULT_OPTS), self.out)
