@@ -8,7 +8,7 @@ Le prototype est en Python 3, sans dépendance externe.
 
 ![Menu principal de Doom2Nethack](docs/menu.svg)
 
-*Le menu interactif (`./menuDoom2Nethack.sh`) : conversion des cartes d'un
+*Le menu interactif (`./Doom2Nethack.sh`) : conversion des cartes d'un
 WAD, niveaux convertis, journal des conversions.*
 
 ![E1M1 de Freedoom converti et chargé dans NetHack](docs/e1m1-nethack.svg)
@@ -86,11 +86,11 @@ deux modes de conversion, découper un grand niveau, convertir un
 ### Avec le menu interactif
 
 ```sh
-./menuDoom2Nethack.sh freedoom-0.13.0/freedoom1.wad
+./Doom2Nethack.sh freedoom-0.13.0/freedoom1.wad
 ```
 
 Le script vérifie que Python 3 et son module `curses` sont présents, puis
-lance `menuDoom2Nethack.py` (qu'on peut aussi lancer directement). Comme
+lance `Doom2Nethack.py` (qu'on peut aussi lancer directement). Comme
 `convertDoom2Nethack.sh`, il tient compte des variables `HACKDIR`,
 `NETHACK` et `WAD_DIR`. Sans argument, le menu reprend le dernier WAD utilisé (ou propose d'en
 choisir un). L'interface est en couleurs (8 couleurs standard, thème

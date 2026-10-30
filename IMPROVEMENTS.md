@@ -120,7 +120,7 @@ Gérer les formats Boom (types de linedefs génériques), Hexen et UDMF
 Ajouter à Yadex une commande « exporter vers NetHack » qui appelle
 `doom2nethack.py` sur le niveau en cours, avec l'aperçu de la carte.
 
-### Menu interactif (`menuDoom2Nethack.py`)
+### Menu interactif (`Doom2Nethack.py`)
 Réalisé dans `d2n/tui.py` : conversion des cartes du WAD dans
 `out/<WAD>/`, une à une ou plusieurs d'un coup (cartes cochées), en
 arrière-plan (barre de progression, journal des conversions) et avec toutes les options de `doom2nethack.py` sauf

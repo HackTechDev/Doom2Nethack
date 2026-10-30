@@ -24,7 +24,7 @@ des salles compte. Python 3, bibliothèque standard uniquement.
 ```sh
 python3 -m unittest discover -s tests          # tests (~30 s)
 python3 doom2nethack.py -p -m E1M1 freedoom-0.13.0/freedoom1.wad
-./menuDoom2Nethack.sh [WAD]                    # menu interactif (curses)
+./Doom2Nethack.sh [WAD]                        # menu interactif (curses)
 ./convertDoom2Nethack.sh [-n N|auto] WAD MAP   # convertir et installer
 python3 -m d2n.play [--branch] NIVEAU          # jouer un niveau installé
 ```

@@ -7,9 +7,9 @@ Sert à produire les captures du README (docs/*.svg) sans outil
 graphique : les caractères et les couleurs du terminal sont gardés.
 Exemple, pour le menu principal :
 
-    tmux new-session -d -s cap -x 96 -y 19 ./menuDoom2Nethack.sh; sleep 1
+    tmux new-session -d -s cap -x 96 -y 19 ./Doom2Nethack.sh; sleep 1
     tmux capture-pane -e -p -t cap > menu.ans
-    python3 docs/ansi2svg.py menu.ans docs/menu.svg 96 ./menuDoom2Nethack.sh
+    python3 docs/ansi2svg.py menu.ans docs/menu.svg 96 ./Doom2Nethack.sh
     tmux kill-session -t cap
 
 La capture de NetHack se fait de la même façon (80 x 24), après avoir

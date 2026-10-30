@@ -1543,19 +1543,19 @@ class App:
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv and argv[0] in ("-h", "--help"):
-        print("Usage : menuDoom2Nethack.py [WAD]\n\nMenu interactif : "
+        print("Usage : Doom2Nethack.py [WAD]\n\nMenu interactif : "
               "conversion des cartes du WAD (défaut : le dernier utilisé)\n"
               "et niveaux déjà convertis, rangés dans out/<WAD>/.\n"
               f"Un WAD introuvable est cherché dans WAD_DIR ({WAD_DIR}).")
         return 0
     wad = os.path.abspath(find_wad(argv[0])) if argv else last_wad()
     if wad and not os.path.isfile(wad):
-        print(f"menuDoom2Nethack : WAD introuvable : {wad}", file=sys.stderr)
+        print(f"Doom2Nethack : WAD introuvable : {wad}", file=sys.stderr)
         return 1
     if wad:
         remember_wad(wad)
     if not sys.stdin.isatty() or not sys.stdout.isatty():
-        print("menuDoom2Nethack : un terminal est nécessaire",
+        print("Doom2Nethack : un terminal est nécessaire",
               file=sys.stderr)
         return 1
     locale.setlocale(locale.LC_ALL, "")

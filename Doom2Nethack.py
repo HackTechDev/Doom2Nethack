@@ -2,7 +2,7 @@
 """Menu interactif de Doom2Nethack : conversion des cartes d'un WAD et
 niveaux déjà convertis (rangés dans out/<WAD>/).
 
-    ./menuDoom2Nethack.py [WAD]
+    ./Doom2Nethack.py [WAD]
 """
 
 import sys

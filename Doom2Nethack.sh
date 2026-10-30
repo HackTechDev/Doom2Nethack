@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Lance le menu interactif de Doom2Nethack (menuDoom2Nethack.py).
+# Lance le menu interactif de Doom2Nethack (Doom2Nethack.py).
 #
-#   ./menuDoom2Nethack.sh [WAD]
+#   ./Doom2Nethack.sh [WAD]
 #
 # Sans WAD, le menu reprend le dernier fichier utilisé, ou propose d'en
 # choisir un.  Les variables HACKDIR et NETHACK (répertoire de jeu et
@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 export WAD_DIR=${WAD_DIR:-$(dirname "$SCRIPT_DIR")/Doom/Wad}
 
-die() { echo "menuDoom2Nethack.sh : $*" >&2; exit 1; }
+die() { echo "Doom2Nethack.sh : $*" >&2; exit 1; }
 
 case "${1:-}" in
 -h|--help)
@@ -37,4 +37,4 @@ python3 -c "import curses" 2> /dev/null ||
 [ -t 0 ] && [ -t 1 ] || die "un terminal est nécessaire"
 
 # Le chemin du WAD reste relatif au répertoire courant : pas de cd.
-exec python3 "$SCRIPT_DIR/menuDoom2Nethack.py" "$@"
+exec python3 "$SCRIPT_DIR/Doom2Nethack.py" "$@"

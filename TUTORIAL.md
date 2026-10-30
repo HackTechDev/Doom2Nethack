@@ -43,7 +43,7 @@ export WAD_DIR=/chemin/vers/wad            # répertoire des WAD
 Depuis le répertoire du projet :
 
 ```sh
-./menuDoom2Nethack.sh freedoom-0.13.0/freedoom1.wad
+./Doom2Nethack.sh freedoom-0.13.0/freedoom1.wad
 ```
 
 Le menu principal s'ouvre. En haut s'affiche le fichier WAD utilisé ; en
@@ -57,7 +57,7 @@ bas, les touches disponibles dans l'écran courant. Dans tous les menus :
 | `q` ou `Échap`      | revenir à l'écran précédent        |
 | `l`                 | journal des conversions            |
 
-La prochaine fois, `./menuDoom2Nethack.sh` sans argument reprendra ce
+La prochaine fois, `./Doom2Nethack.sh` sans argument reprendra ce
 WAD. Pour en changer, choisissez **Choisir un autre WAD** : la liste
 commence par les WAD récents, suivis du contenu du répertoire. `w` va au
 répertoire des WAD, `/` permet de taper un chemin (`Tab` complète).
