@@ -32,6 +32,9 @@ def main(argv=None):
     p.add_argument("--hazards", choices=("none", "water", "lava"),
                    default="none",
                    help="rendu des sols à dégâts (nukage, lave...)")
+    p.add_argument("--skill", choices=("easy", "medium", "hard"),
+                   default="medium",
+                   help="difficulté Doom des monstres et objets")
     a = p.parse_args(argv)
 
     if not 3 <= a.width <= MAX_WIDTH or not 3 <= a.height <= MAX_HEIGHT:
@@ -46,7 +49,8 @@ def main(argv=None):
             raise WadError(f"{a.wad} : aucun niveau")
         level = wad.load_level(a.map or names[0])
         res = convert(level, Options(a.width, a.height, a.samples,
-                                     a.coverage, a.keep_aspect, a.hazards))
+                                     a.coverage, a.keep_aspect, a.hazards,
+                                     a.skill))
     except (WadError, ValueError, OSError) as e:
         print(f"doom2nethack : {e}", file=sys.stderr)
         return 1

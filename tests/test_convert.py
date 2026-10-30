@@ -75,5 +75,24 @@ class TestYadex(unittest.TestCase):
         self.assertIn(res.downstair, reachable(res, res.upstair))
 
 
+FREEDOOM = os.path.join(os.path.dirname(__file__), "..", "..",
+                        "freedoom-0.13.0")
+
+
+@unittest.skipUnless(os.path.isdir(FREEDOOM), "Freedoom absent")
+class TestFreedoom(unittest.TestCase):
+    def test_all_levels_connected(self):
+        for wad_name in ("freedoom1.wad", "freedoom2.wad"):
+            wad = Wad(os.path.join(FREEDOOM, wad_name))
+            for name in wad.level_names():
+                with self.subTest(level=name):
+                    res = convert(wad.load_level(name))
+                    seen = reachable(res, res.upstair)
+                    self.assertIn(res.downstair, seen)
+                    walkable = sum(row.count(".") + row.count("+")
+                                   for row in res.grid)
+                    self.assertEqual(walkable, len(seen))
+
+
 if __name__ == "__main__":
     unittest.main()

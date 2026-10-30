@@ -22,6 +22,9 @@ SECRET_SECTOR = 9
 # Thing présent seulement en multijoueur.
 MTF_MULTI = 0x0010
 
+# Niveaux de difficulté où un thing est présent.
+SKILL_FLAGS = {"easy": 0x0001, "medium": 0x0002, "hard": 0x0004}
+
 PLAYER_START = 1
 
 # Monstres Doom -> nom de monstre NetHack (include/monsters.h).

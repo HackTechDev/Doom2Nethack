@@ -24,6 +24,7 @@ class Options:
     coverage: float = 0.34      # fraction d'échantillons pour faire un sol
     keep_aspect: bool = False   # échelle uniforme (case 2x plus haute)
     hazards: str = "none"       # none | water | lava
+    skill: str = "medium"       # easy | medium | hard
 
 
 @dataclass
@@ -192,25 +193,82 @@ class Converter:
             if self.sec[y][x1] is None:
                 self.sec[y][x1] = sector
 
-    def _connect(self):
-        """Garantit que deux secteurs reliés dans Doom par une ligne
-        franchissable le sont aussi sur la grille."""
-        carved = 0
+    def _links(self):
+        """Paires de secteurs visibles reliés dans Doom, directement ou à
+        travers des secteurs trop petits pour occuper une case (marches,
+        ascenseurs...) : (secteur a, linedef côté a, secteur b, linedef
+        côté b)."""
+        adj = {}
         for ld in self.lvl.linedefs:
             sr = self.lvl.side_sector(ld.right)
             sl = self.lvl.side_sector(ld.left)
             if sr is None or sl is None or sr == sl or \
                     ld.flags & tables.ML_BLOCKING:
                 continue
-            ca, cb = self.cells_of(sr), self.cells_of(sl)
-            if not ca or not cb:
-                continue        # secteur trop petit pour apparaître
-            comp = self._components()
-            mx, my = self._midcell(ld)
-            a, b = self.nearest(mx, my, ca), self.nearest(mx, my, cb)
+            adj.setdefault(sr, []).append((sl, ld))
+            adj.setdefault(sl, []).append((sr, ld))
+        visible = {s for row in self.sec for s in row if s is not None}
+        links, seen_pairs = [], set()
+        for a in sorted(visible & adj.keys()):
+            for b, ld in adj[a]:
+                if b in visible:
+                    if (b, a) not in seen_pairs:
+                        seen_pairs.add((a, b))
+                        links.append((a, ld, b, ld))
+                    continue
+                # parcours des secteurs invisibles à partir de b
+                seen, todo = {a, b}, deque([b])
+                while todo:
+                    s = todo.popleft()
+                    for c, ld2 in adj.get(s, []):
+                        if c in seen:
+                            continue
+                        seen.add(c)
+                        if c in visible:
+                            if (c, a) not in seen_pairs and \
+                                    (a, c) not in seen_pairs:
+                                seen_pairs.add((a, c))
+                                links.append((a, ld, c, ld2))
+                        else:
+                            todo.append(c)
+        return links
+
+    def _connect(self):
+        """Garantit que deux secteurs reliés dans Doom par des lignes
+        franchissables le sont aussi sur la grille."""
+        carved = 0
+        cells = {}
+        for y in range(self.h):
+            for x in range(self.w):
+                if self.sec[y][x] is not None:
+                    cells.setdefault(self.sec[y][x], []).append((x, y))
+        comp = self._components()
+        for sa, lda, sb, ldb in self._links():
+            a = self.nearest(*self._midcell(lda), cells[sa])
+            b = self.nearest(*self._midcell(ldb), cells[sb])
             if comp[a[1]][a[0]] != comp[b[1]][b[0]]:
-                self._carve(a, b, sl)
+                self._carve(a, b, sb)
+                comp = self._components()
                 carved += 1
+        # Zones encore isolées (téléporteurs, sols mobiles, rambardes...) :
+        # on les relie à la plus grande zone pour que tout soit accessible.
+        while True:
+            groups = {}
+            for y in range(self.h):
+                for x in range(self.w):
+                    if comp[y][x] >= 0:
+                        groups.setdefault(comp[y][x], []).append((x, y))
+            if len(groups) <= 1:
+                break
+            main = max(groups.values(), key=len)
+            other = min((g for g in groups.values() if g is not main),
+                        key=len)
+            a, b = min(((p, q) for p in other for q in main),
+                       key=lambda pq: (pq[0][0] - pq[1][0]) ** 2 +
+                       (pq[0][1] - pq[1][1]) ** 2)
+            self._carve(a, b, self.sec[b[1]][b[0]])
+            comp = self._components()
+            carved += 1
         if carved:
             self.warnings.append(f"{carved} passage(s) creusé(s) pour "
                                  "préserver la connectivité")
@@ -238,7 +296,7 @@ class Converter:
             ds = self.lvl.side_sector(ld.left)
             if state and ds is not None:
                 door_secs.setdefault(ds, (state, []))[1].append(ld)
-        doors = []
+        doors, placed = [], set()
         for ds, (state, lines) in sorted(door_secs.items()):
             cells = self.cells_of(ds)
             if not cells:
@@ -247,6 +305,8 @@ class Converter:
                 cells = [(x, y) for mx, my in mids
                          for x in range(mx - 1, mx + 2)
                          for y in range(my - 1, my + 2) if self.floor(x, y)]
+            # plusieurs secteurs porte peuvent tomber sur la même case
+            cells = [c for c in cells if c not in placed]
             if not cells:
                 self.warnings.append(f"porte du secteur {ds} non placée")
                 continue
@@ -270,7 +330,7 @@ class Converter:
             # largeur du passage, dans l'emprise du secteur porte.
             for sgn in (1, -1):
                 px, py = x + sgn * step[0], y + sgn * step[1]
-                while self.floor(px, py):
+                while self.floor(px, py) and (px, py) not in placed:
                     pos = self.to_doom(px, py)[step[1]]
                     if not lo <= pos <= hi:
                         break
@@ -280,6 +340,7 @@ class Converter:
                 self.warnings.append(f"porte du secteur {ds} en (x={x}, "
                                      f"y={y}) mal entourée de murs")
             doors.append((x, y, state))
+            placed.add((x, y))
         return doors
 
     # --- assemblage ------------------------------------------------------
@@ -288,8 +349,8 @@ class Converter:
         self._sector_edges()
         self._setup_transform()
         self._rasterize()
-        self._connect()
         doors = self._place_doors()
+        self._connect()
         door_xy = {(x, y) for x, y, _ in doors}
 
         grid = [[STONE] * self.w for _ in range(self.h)]
@@ -376,7 +437,8 @@ class Converter:
 
         skipped = Counter()
         for t in self.lvl.things:
-            if t.flags & tables.MTF_MULTI or t.type == tables.PLAYER_START:
+            if t.flags & tables.MTF_MULTI or t.type == tables.PLAYER_START \
+                    or not t.flags & tables.SKILL_FLAGS[self.opts.skill]:
                 continue
             if t.type in tables.MONSTERS:
                 c = spot(*self.to_cell(t.x, t.y))

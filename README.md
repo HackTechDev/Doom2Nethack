@@ -26,25 +26,33 @@ Options :
 | `--samples`             | échantillons par case et par axe (défaut 3)           |
 | `--coverage`            | part d'une case à couvrir pour faire un sol (0.34)    |
 | `--hazards`             | sols à dégâts : `none` (défaut), `water` ou `lava`    |
+| `--skill`               | difficulté des things : `easy`, `medium` (défaut), `hard` |
 
 ## Tester dans NetHack
 
-1. Copier le `.lua` produit dans le répertoire de jeu (HACKDIR) d'un NetHack
-   compilé sans DLB.
-2. Lancer `nethack -D` (mode wizard).
-3. Utiliser `#wizloaddes`, puis donner le nom du fichier.
+1. Copier le `.lua` produit dans le répertoire de jeu (HACKDIR, par défaut
+   `~/nh/install/games/lib/nethackdir`). Pas besoin de recompiler sans DLB :
+   un fichier absent de l'archive `nhdat` est cherché dans ce répertoire
+   (`dlb_fopen()`, `src/dlb.c`).
+2. Lancer `nethack -D` (mode wizard ; l'utilisateur doit figurer dans
+   `WIZARDS` du fichier `sysconf`).
+3. Utiliser `#wizloaddes`, puis donner le nom du fichier (ex. `map01.lua`).
 
 ## Ce que fait le prototype
 
 - Rasterisation : chaque case est échantillonnée (3 × 3 par défaut) et
   rattachée au secteur Doom majoritaire (test point-dans-polygone).
-- Connectivité : deux secteurs reliés par une ligne franchissable dans Doom
-  le sont aussi sur la carte, et un couloir est creusé si besoin.
+- Connectivité : deux secteurs reliés dans Doom par une ligne franchissable,
+  directement ou à travers des secteurs trop petits pour apparaître
+  (marches, ascenseurs), le sont aussi sur la carte ; un couloir est creusé
+  si besoin.
 - Portes : une porte (`+`) par secteur porte (linedefs 1, 26-28, 31-34,
   117, 118). Les portes à clé sont verrouillées.
 - Escaliers : l'escalier montant est au départ du joueur, l'escalier
   descendant à la sortie (linedefs 11, 51, 52, 124…).
 - Monstres et objets : table de correspondance dans `d2n/tables.py`.
+- Toute zone restée isolée (téléporteurs, sols mobiles, rambardes) est
+  reliée à la zone principale : tout le niveau est accessible.
 
 ## Tests
 
