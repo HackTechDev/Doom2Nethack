@@ -29,14 +29,14 @@ def main(argv=None):
     p.add_argument("-m", "--map", help="niveau à convertir (MAP01, E1M1...)"
                    " ; par défaut le premier")
     p.add_argument("-o", "--output", help="fichier .lua de sortie pour un "
-                   "seul niveau (défaut : out/<niveau>.lua ; '-' pour la "
-                   "sortie standard)")
+                   "seul niveau (défaut : out/<wad>/<niveau>.lua ; '-' pour "
+                   "la sortie standard)")
     p.add_argument("-n", "--parts", type=parts_arg, default=1,
                    help="découper en N niveaux NetHack reliés par des "
                    f"escaliers (1 à {MAX_PARTS}, ou 'auto')")
     p.add_argument("-d", "--outdir",
                    help="répertoire de sortie pour un niveau découpé "
-                   "(défaut : out/<niveau>)")
+                   "(défaut : out/<wad>/<niveau>)")
     p.add_argument("-l", "--list", action="store_true",
                    help="lister les niveaux du WAD")
     p.add_argument("-p", "--preview", action="store_true",
@@ -87,10 +87,12 @@ def main(argv=None):
         return 1
 
     source = os.path.basename(a.wad)
+    # out/<nom du WAD sans extension>/, comme le menu (d2n/tui.py)
+    wad_dir = os.path.join(OUT_DIR, os.path.splitext(source)[0])
     log = sys.stderr if a.output == "-" else sys.stdout
     written = []
     if n == 1:
-        out = a.output or os.path.join(OUT_DIR,
+        out = a.output or os.path.join(wad_dir,
                                        f"{results[0].name.lower()}.lua")
         lua = to_lua(results[0], source)
         if out == "-":
@@ -98,7 +100,7 @@ def main(argv=None):
         else:
             written.append(_write(out, lua))
     else:
-        outdir = a.outdir or os.path.join(OUT_DIR, level.name.lower())
+        outdir = a.outdir or os.path.join(wad_dir, level.name.lower())
         for i, res in enumerate(results):
             written.append(_write(os.path.join(outdir, f"{res.name}.lua"),
                                   to_lua(res, source, branch=i == 0)))

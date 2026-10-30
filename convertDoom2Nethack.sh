@@ -39,7 +39,7 @@ Options :
 Variables d'environnement :
   NETHACK_SRC  sources NetHack   ($NETHACK_SRC)
   HACKDIR      répertoire de jeu ($HACKDIR)
-  OUTDIR       fichiers générés  ($OUTDIR)
+  OUTDIR       fichiers générés  ($OUTDIR/<wad>/)
 EOF
 }
 
@@ -120,12 +120,15 @@ MAP=${POS[1]:-$(python3 "$SCRIPT_DIR/doom2nethack.py" --list "$WAD" | head -n 1)
 [ -n "$MAP" ] || die "aucun niveau dans $WAD"
 MAP=${MAP^^}
 LOWER=${MAP,,}
+# Comme doom2nethack.py et le menu : out/<nom du WAD sans extension>/
+DEST=$OUTDIR/$(basename "${WAD%.*}")
+mkdir -p "$DEST"
 
 if [ "$PARTS" = 1 ]; then
     echo "== Conversion de $MAP"
     python3 "$SCRIPT_DIR/doom2nethack.py" -p -m "$MAP" "${ARGS[@]}" \
-        -o "$OUTDIR/$LOWER.lua" "$WAD"
-    cp "$OUTDIR/$LOWER.lua" "$HACKDIR/"
+        -o "$DEST/$LOWER.lua" "$WAD"
+    cp "$DEST/$LOWER.lua" "$HACKDIR/"
     cat <<EOF
 
 == $LOWER.lua est installé dans $HACKDIR
@@ -145,10 +148,10 @@ EOF
 fi
 
 echo "== Conversion de $MAP en branche ($PARTS niveaux demandés)"
-rm -rf "${OUTDIR:?}/$LOWER"
+rm -rf "${DEST:?}/$LOWER"
 python3 "$SCRIPT_DIR/doom2nethack.py" -p -m "$MAP" -n "$PARTS" "${ARGS[@]}" \
-    -d "$OUTDIR/$LOWER" "$WAD"
-mapfile -t LEVELS < <(cd "$OUTDIR/$LOWER" &&
+    -d "$DEST/$LOWER" "$WAD"
+mapfile -t LEVELS < <(cd "$DEST/$LOWER" &&
                       ls "$LOWER"?.lua | sed 's/\.lua$//')
 NAME="Doom $MAP"
 
@@ -160,7 +163,7 @@ python3 -m d2n.dungeon patch "$NETHACK_SRC/dat/dungeon.lua" "$NAME" \
     "${LEVELS[@]}" || die "échec de la modification de dungeon.lua"
 install_nhdat
 for l in "${LEVELS[@]}"; do
-    cp "$OUTDIR/$LOWER/$l.lua" "$HACKDIR/"
+    cp "$DEST/$LOWER/$l.lua" "$HACKDIR/"
 done
 
 cat <<EOF

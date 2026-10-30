@@ -26,8 +26,8 @@ Le prototype est en Python 3, sans dépendance externe.
    ./convertDoom2Nethack.sh ../freedoom-0.13.0/freedoom1.wad E1M1
    ```
 
-   Le script affiche la carte obtenue et copie `out/e1m1.lua` dans le
-   répertoire de jeu.
+   Le script affiche la carte obtenue et copie `out/freedoom1/e1m1.lua`
+   dans le répertoire de jeu.
 2. Lancer NetHack en mode wizard : `~/nh/install/games/nethack -D`.
 3. Descendre au niveau 3 : `Ctrl-V`, `3`, `Entrée`. Au niveau 1, NetHack
    refuse de créer l'escalier montant.
@@ -57,6 +57,33 @@ Le prototype est en Python 3, sans dépendance externe.
    du niveau suivant, de l'autre côté du passage Doom.
 5. Pour retirer les branches Doom : `./convertDoom2Nethack.sh --restore`.
 
+### Avec le menu interactif
+
+```sh
+./menuDoom2Nethack.py ../freedoom-0.13.0/freedoom1.wad
+```
+
+Sans argument, le menu reprend le dernier WAD utilisé (ou propose d'en
+choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
+
+- **Convertir une carte du WAD** : liste les cartes du WAD ; `Entrée`
+  convertit la carte choisie dans `out/<WAD sans .wad>/` (par exemple
+  `out/freedoom1/e1m1.lua`, ou `out/freedoom1/e1m1/` pour une branche) et
+  affiche le résultat. Les cartes déjà converties sont marquées. Les
+  options se changent par touche : `m` mode (`raster`/`rooms`), `n`
+  découpage (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts,
+  `l` éclairage.
+- **Niveaux convertis** : les niveaux de `out/`, classés par section, une
+  par fichier WAD. `Entrée` affiche la carte (`←` `→` : niveaux d'une
+  branche), `i` l'installe dans NetHack, `x` la supprime. Un niveau simple
+  est copié dans le répertoire de jeu ; une branche est installée par
+  `convertDoom2Nethack.sh` avec les options de sa conversion (gardées dans
+  `out/<WAD>/doom2nethack.json`).
+
+`Choisir un autre fichier WAD` ouvre un explorateur de fichiers.
+Navigation : flèches, `Page↑`/`Page↓`, `Entrée`, `q` ou `Échap` pour
+revenir.
+
 ### Commandes utiles dans le jeu
 
 | Touche      | Effet                                                    |
@@ -72,9 +99,9 @@ Le prototype est en Python 3, sans dépendance externe.
 
 ```sh
 python3 doom2nethack.py --list doom2.wad           # niveaux du WAD
-python3 doom2nethack.py -p -m MAP01 doom2.wad      # écrit out/map01.lua
+python3 doom2nethack.py -p -m MAP01 doom2.wad      # écrit out/doom2/map01.lua
 python3 doom2nethack.py -p --keep-aspect -o lvl.lua doom2.wad
-python3 doom2nethack.py -p -n auto -m E1M1 freedoom1.wad  # out/e1m1/
+python3 doom2nethack.py -p -n auto -m E1M1 freedoom1.wad  # out/freedoom1/e1m1/
 python3 doom2nethack.py -p --mode rooms -m E1M1 freedoom1.wad  # salles
 ```
 
@@ -83,9 +110,9 @@ Options :
 | Option                  | Rôle                                                  |
 |-------------------------|-------------------------------------------------------|
 | `-m`, `--map`           | niveau à convertir (défaut : le premier)              |
-| `-o`, `--output`        | fichier de sortie (défaut `out/<niveau>.lua` ; `-` : sortie standard) |
+| `-o`, `--output`        | fichier de sortie (défaut `out/<wad>/<niveau>.lua` ; `-` : sortie standard) |
 | `-n`, `--parts`         | découpe en N niveaux reliés par des escaliers (`auto`) |
-| `-d`, `--outdir`        | répertoire d'un niveau découpé (défaut `out/<niveau>`) |
+| `-d`, `--outdir`        | répertoire d'un niveau découpé (défaut `out/<wad>/<niveau>`) |
 | `-p`, `--preview`       | affiche la carte obtenue (avec `<` et `>`)            |
 | `--width`, `--height`   | taille de la carte (max 75 × 19)                      |
 | `--keep-aspect`         | échelle uniforme au lieu d'étirer la carte            |

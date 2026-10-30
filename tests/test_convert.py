@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from d2n.convert import Options, convert          # noqa: E402
 from d2n.lua_out import dungeon_snippet, to_lua   # noqa: E402
 from d2n.split import auto_parts, convert_parts, plan  # noqa: E402
+from d2n import tui                               # noqa: E402
 from d2n.wad import Wad                           # noqa: E402
 import make_test_wad                              # noqa: E402
 
@@ -186,6 +187,56 @@ NETHACK = os.path.join(os.path.dirname(__file__), "..", "..",
 
 
 @unittest.skipUnless(os.path.isdir(NETHACK), "sources NetHack absentes")
+class TestTui(unittest.TestCase):
+    """Fonctions du menu interactif (sans curses)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.wad = os.path.join(self.tmp.name, "Mon Wad.wad")
+        make_test_wad.write_wad(self.wad, make_test_wad.build())
+        self.out = os.path.join(self.tmp.name, "out")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_convert_and_list(self):
+        opts = dict(tui.DEFAULT_OPTS)
+        ok, lines = tui.run_conversion(self.wad, "MAP01", opts, self.out)
+        self.assertTrue(ok, lines)
+        d = os.path.join(self.out, "Mon Wad")
+        self.assertTrue(os.path.isfile(os.path.join(d, "map01.lua")))
+        ok, lines = tui.run_conversion(self.wad, "MAP01",
+                                       dict(opts, parts="2"), self.out)
+        self.assertTrue(ok, lines)
+
+        [s] = tui.converted_levels(self.out)
+        self.assertEqual((s.name, s.wad), ("Mon Wad", self.wad))
+        single, branch = s.levels
+        self.assertFalse(single.split)
+        self.assertTrue(branch.split)
+        self.assertEqual([os.path.basename(p) for p in branch.parts],
+                         ["map01a.lua", "map01b.lua"])
+        meta = tui.load_meta(d)["levels"]
+        self.assertEqual(meta["map01"]["parts"], "2")
+
+        desc, grid = tui.lua_summary(single.path)
+        self.assertIn("monstre(s)", desc)
+        self.assertEqual(sum(r.count("<") + r.count(">") for r in grid), 2)
+        _, grid = tui.lua_summary(branch.parts[0])
+        self.assertTrue(any("<" in r for r in grid))    # escalier de branche
+
+        tui.delete_level(s, branch)
+        [s] = tui.converted_levels(self.out)
+        self.assertEqual([lv.name for lv in s.levels], ["map01"])
+        self.assertNotIn("map01", tui.load_meta(d)["levels"])
+
+    def test_bad_map(self):
+        ok, lines = tui.run_conversion(self.wad, "E9M9",
+                                       dict(tui.DEFAULT_OPTS), self.out)
+        self.assertFalse(ok)
+        self.assertEqual(tui.converted_levels(self.out), [])
+
+
 class TestTables(unittest.TestCase):
     def test_names_exist_in_nethack(self):
         from d2n import tables
