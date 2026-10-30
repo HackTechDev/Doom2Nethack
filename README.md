@@ -87,13 +87,19 @@ choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
   courantes ont un raccourci : `m` mode (`raster`/`rooms`), `n` découpage
   (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts.
 - **Niveaux convertis** : les niveaux de `out/`, classés par section, une
-  par fichier WAD. `Entrée` affiche la carte (`←` `→` : niveaux d'une
-  branche), `i` l'installe dans NetHack, `x` la supprime. Un niveau simple
+  par fichier WAD. Chaque niveau indique s'il est installé dans NetHack :
+  copié dans le répertoire de jeu (et identique), et, pour une branche,
+  déclaré dans `dat/dungeon.lua` (« installé, autre version » : le
+  fichier copié diffère, par exemple une carte du même nom d'un autre
+  WAD). `Entrée` affiche la carte (`←` `→` : niveaux d'une branche), `i`
+  l'installe dans NetHack, `x` la supprime. Un niveau simple
   est copié dans le répertoire de jeu ; une branche est installée par
   `convertDoom2Nethack.sh` avec les options de sa conversion (gardées dans
   `out/<WAD>/doom2nethack.json`).
 
 `Choisir un autre fichier WAD` ouvre un explorateur de fichiers.
+`Retirer les branches Doom de NetHack` lance
+`convertDoom2Nethack.sh --restore` (le script demande confirmation).
 Navigation : flèches, `Page↑`/`Page↓`, `Entrée`, `q` ou `Échap` pour
 revenir.
 

@@ -8,6 +8,7 @@ WAD et les options de chaque conversion, pour réinstaller une branche avec
 convertDoom2Nethack.sh."""
 
 import curses
+import filecmp
 import json
 import locale
 import os
@@ -21,6 +22,7 @@ import threading
 from dataclasses import dataclass
 
 from .convert import MAX_HEIGHT, MAX_WIDTH
+from .dungeon import declared
 from .split import MAX_PARTS
 from .wad import Wad, WadError
 
@@ -32,6 +34,9 @@ HACKDIR = os.environ.get("HACKDIR", os.path.expanduser(
     "~/nh/install/games/lib/nethackdir"))
 NETHACK = os.environ.get("NETHACK", os.path.join(
     os.path.dirname(os.path.dirname(HACKDIR)), "nethack"))
+NETHACK_SRC = os.environ.get("NETHACK_SRC",
+                             "/home/sgond/app/Nethack500_Lubuntu2604")
+DUNGEON_LUA = os.path.join(NETHACK_SRC, "dat", "dungeon.lua")
 META = "doom2nethack.json"
 LAST_WAD = os.path.join(OUT_DIR, ".last-wad")
 
@@ -330,6 +335,38 @@ def summary_lines(results, error_attr=0):
     return out
 
 
+def branch_name(level):
+    """Nom de la branche déclarée par convertDoom2Nethack.sh."""
+    return f"Doom {level.name.upper()}"
+
+
+def declared_branches(dungeon=DUNGEON_LUA):
+    try:
+        with open(dungeon) as f:
+            return declared(f.read())
+    except OSError:
+        return {}
+
+
+def install_state(level, hackdir=HACKDIR, branches=None):
+    """État dans NetHack d'un niveau converti : None (non installé) ou un
+    texte.  `branches` : branches déclarées dans dungeon.lua."""
+    copies = [os.path.join(hackdir, os.path.basename(p)) for p in level.parts]
+    present = [os.path.isfile(c) for c in copies]
+    names = [os.path.basename(p)[:-4] for p in level.parts]
+    listed = level.split and (branches or {}).get(branch_name(level))
+    if not any(present):
+        return "déclaré, fichiers absents" if listed else None
+    if not all(present):
+        return "installé en partie"
+    same = all(filecmp.cmp(p, c, shallow=False)
+               for p, c in zip(level.parts, copies))
+    if level.split and listed != names:
+        return "fichiers copiés, branche non déclarée" if not listed \
+            else "installé, autre découpage"
+    return "installé" if same else "installé, autre version"
+
+
 def lua_summary(path):
     """(description, carte avec les escaliers) d'un niveau .lua."""
     with open(path) as f:
@@ -576,15 +613,22 @@ class App:
             self.choose_wad()
         sel = 0
         while True:
+            branches = declared_branches()
             rows = [("Convertir une carte du WAD", True, 0),
                     ("Niveaux convertis", True, 0),
                     ("Journal des conversions", True, 0),
                     ("Choisir un autre fichier WAD", True, 0),
+                    (f"Retirer les branches Doom de NetHack "
+                     f"({len(branches)} déclarée(s))", bool(branches), 0
+                     if branches else curses.A_DIM),
                     ("Quitter", True, 0)]
             key, sel = self.menu("menu principal", rows, sel,
                                  "↑↓ choisir   Entrée valider   "
                                  "l journal   q quitter")
-            if key == "q" or sel == 4:
+            if sel == 4 and key == "\n":
+                self.shell([SCRIPT, "--restore"])
+                continue
+            if key == "q" or sel == 5:
                 n = self.jobs.active()
                 if not n or self.confirm(f"{n} conversion(s) en cours ou en "
                                          "attente seront abandonnées. "
@@ -778,6 +822,7 @@ class App:
         sel, current = 0, None
         while True:
             rows, entries = [], []
+            branches = declared_branches()
             for s in converted_levels():
                 if rows:
                     rows.append(("", False, 0))
@@ -786,7 +831,11 @@ class App:
                 for lv in s.levels:
                     kind = f"branche de {len(lv.parts)} niveaux" \
                         if lv.split else "niveau simple"
-                    rows.append((f"   {lv.name:<8} {kind}", True, 0))
+                    state = install_state(lv, branches=branches)
+                    attr = self.done if state == "installé" else \
+                        curses.A_BOLD if state else 0
+                    rows.append((f"   {lv.name:<8} {kind:<22} {state or ''}",
+                                 True, attr))
                     entries.append((s, lv))
             if not entries:
                 self.message(f"Aucun niveau converti dans {rel(OUT_DIR)}/")
@@ -795,10 +844,13 @@ class App:
                 (i for i, r in enumerate(rows) if r[1]), entries)}
             sel = next((i for i, (_, lv) in index.items()
                         if lv.path == current), sel)
+            info = [f"Répertoire de jeu : {HACKDIR}",
+                    "Branches Doom dans dungeon.lua : "
+                    + (", ".join(branches) or "aucune")]
             key, sel = self.menu(
                 "niveaux convertis", rows, sel,
                 "Entrée voir   i installer dans NetHack   x supprimer   "
-                "q retour", keys="ix", live=True)
+                "q retour", keys="ix", live=True, info=info)
             if key == "q":
                 return
             s, lv = index[sel]
@@ -858,8 +910,10 @@ class App:
         """Lance une commande dans le terminal, hors de curses."""
         curses.endwin()
         print("$ " + " ".join(shlex.quote(c) for c in cmd), flush=True)
+        env = dict(os.environ, HACKDIR=HACKDIR, NETHACK=NETHACK,
+                   NETHACK_SRC=NETHACK_SRC)
         try:
-            subprocess.run(cmd)
+            subprocess.run(cmd, env=env)
             input("\nEntrée pour revenir au menu...")
         except (OSError, KeyboardInterrupt, EOFError) as e:
             print(e)

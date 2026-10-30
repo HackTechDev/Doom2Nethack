@@ -42,6 +42,19 @@ def _marked(name, block, indent):
     return f"{indent}{BEGIN}{name}\n{block}{indent}{END}{name}\n"
 
 
+def declared(text):
+    """Branches Doom déclarées dans le texte de dungeon.lua : {nom : liste
+    des niveaux}."""
+    pattern = (rf"{re.escape(BEGIN)}(?P<n>[^\n]*)\n(?P<b>.*?)"
+               rf"{re.escape(END)}(?P=n)\n")
+    out = {}
+    for m in re.finditer(pattern, text, flags=re.S):
+        if "levels = {" in m.group("b"):        # bloc du donjon
+            out[m.group("n")] = re.findall(r'\{ name = "([^"]+)"',
+                                           m.group("b"))
+    return out
+
+
 def unpatch(text, name=None):
     """Retire les blocs de la branche `name` (toutes si None)."""
     who = re.escape(name) if name else r"[^\n]*"

@@ -283,6 +283,39 @@ class TestTui(unittest.TestCase):
         self.assertEqual(len(jobs.results), 2)          # arrêtée : rien
         self.assertEqual(jobs.active(), 0)
 
+    def test_install_state(self):
+        import shutil
+        from d2n.dungeon import declared, patch
+        opts = dict(tui.DEFAULT_OPTS)
+        tui.run_conversion(self.wad, "MAP01", opts, self.out)
+        tui.run_conversion(self.wad, "MAP01", dict(opts, parts="2"),
+                           self.out)
+        single, branch = tui.converted_levels(self.out)[0].levels
+        hack = os.path.join(self.tmp.name, "hack")
+        os.mkdir(hack)
+        self.assertIsNone(tui.install_state(single, hack))
+        shutil.copy(single.path, hack)
+        self.assertEqual(tui.install_state(single, hack), "installé")
+        with open(os.path.join(hack, "map01.lua"), "a") as f:
+            f.write("-- modifié\n")
+        self.assertEqual(tui.install_state(single, hack),
+                         "installé, autre version")
+
+        with open(DUNGEON_LUA) as f:
+            text = patch(f.read(), "Doom MAP01", ["map01a", "map01b"])
+        branches = declared(text)
+        self.assertEqual(branches, {"Doom MAP01": ["map01a", "map01b"]})
+        self.assertEqual(tui.install_state(branch, hack, branches),
+                         "déclaré, fichiers absents")
+        shutil.copy(branch.parts[0], hack)
+        self.assertEqual(tui.install_state(branch, hack, branches),
+                         "installé en partie")
+        shutil.copy(branch.parts[1], hack)
+        self.assertEqual(tui.install_state(branch, hack, {}),
+                         "fichiers copiés, branche non déclarée")
+        self.assertEqual(tui.install_state(branch, hack, branches),
+                         "installé")
+
     def test_bad_map(self):
         ok, lines = tui.run_conversion(self.wad, "E9M9",
                                        dict(tui.DEFAULT_OPTS), self.out)
