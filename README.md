@@ -6,7 +6,69 @@ seule la disposition des salles est conservée. Voir `ANALYSE.md`.
 
 Le prototype est en Python 3, sans dépendance externe.
 
-## Utilisation
+## Charger un niveau Doom dans NetHack
+
+### Prérequis
+
+- NetHack compilé et installé (par défaut dans `~/nh/install/games`), avec
+  ses sources configurées (`NETHACK_SRC`, par défaut
+  `/home/sgond/app/Nethack500_Lubuntu2604`).
+- Le mode wizard autorisé : ajouter son nom d'utilisateur à la ligne
+  `WIZARDS=` de `~/nh/install/games/lib/nethackdir/sysconf`.
+- Un fichier WAD Doom ou Doom II, par exemple Freedoom.
+  `python3 doom2nethack.py --list fichier.wad` liste ses niveaux.
+
+### Un niveau Doom → un niveau NetHack
+
+1. Convertir et installer le niveau :
+
+   ```sh
+   ./convertDoom2Nethack.sh ../freedoom-0.13.0/freedoom1.wad E1M1
+   ```
+
+   Le script affiche la carte obtenue et copie `out/e1m1.lua` dans le
+   répertoire de jeu.
+2. Lancer NetHack en mode wizard : `~/nh/install/games/nethack -D`.
+3. Descendre au niveau 3 : `Ctrl-V`, `3`, `Entrée`. Au niveau 1, NetHack
+   refuse de créer l'escalier montant.
+4. Charger le niveau : `#wizloaddes`, `Entrée`, `e1m1`, `Entrée`.
+5. Afficher toute la carte : `Ctrl-F`.
+
+### Un grand niveau Doom → une branche de plusieurs niveaux
+
+1. Convertir et installer la branche (`-n auto` choisit le nombre de
+   niveaux, `-n 3` l'impose) :
+
+   ```sh
+   ./convertDoom2Nethack.sh -n auto ../freedoom-0.13.0/freedoom1.wad E1M1
+   ```
+
+   Après confirmation, le script déclare la branche « Doom E1M1 » dans
+   `dat/dungeon.lua`, reconstruit l'archive `nhdat` et copie les niveaux
+   (`e1m1a.lua`, `e1m1b.lua`…) dans le répertoire de jeu.
+2. Commencer une **nouvelle** partie en mode wizard :
+   `~/nh/install/games/nethack -D`. Une partie sauvegardée garde l'ancien
+   plan du donjon.
+3. Aller dans la branche : `Ctrl-V`, `?`, `Entrée`. Le menu liste
+   « Doom E1M1 » et ses niveaux ; choisir la lettre de `e1m1a`. Sans
+   téléportation, l'escalier de la branche se trouve entre les niveaux 2
+   et 4 du donjon principal.
+4. Passer d'un niveau au suivant par l'escalier `>` : on arrive sur le `<`
+   du niveau suivant, de l'autre côté du passage Doom.
+5. Pour retirer les branches Doom : `./convertDoom2Nethack.sh --restore`.
+
+### Commandes utiles dans le jeu
+
+| Touche      | Effet                                                    |
+|-------------|----------------------------------------------------------|
+| `Ctrl-F`    | révéler toute la carte (mode wizard)                     |
+| `Ctrl-V`    | se téléporter à un niveau (`?` : menu des niveaux)       |
+| `_`         | aller automatiquement à un endroit (par exemple `>`)     |
+| `;`         | regarder un monstre ou un objet                          |
+| `Ctrl-W`    | souhait : « potion of monster detection » montre les monstres |
+| `#quit`     | abandonner la partie (fermer le terminal la sauvegarde)  |
+
+## Utilisation de doom2nethack.py
 
 ```sh
 python3 doom2nethack.py --list doom2.wad           # niveaux du WAD
@@ -31,23 +93,12 @@ Options :
 | `--hazards`             | sols à dégâts : `none` (défaut), `water` ou `lava`    |
 | `--skill`               | difficulté des things : `easy`, `medium` (défaut), `hard` |
 
-## Tester dans NetHack
-
-`convertDoom2Nethack.sh` convertit et installe le niveau (ou, avec `-n`,
-une branche de plusieurs niveaux), puis indique comment le charger :
-
-```sh
-./convertDoom2Nethack.sh ../freedoom-0.13.0/freedoom1.wad E1M1   # un niveau
-./convertDoom2Nethack.sh -n auto ../freedoom-0.13.0/freedoom1.wad E1M1
-./convertDoom2Nethack.sh --restore      # retirer les branches Doom
-```
+## Fonctionnement de convertDoom2Nethack.sh
 
 - Un seul niveau : le `.lua` est copié dans le répertoire de jeu (HACKDIR,
   par défaut `~/nh/install/games/lib/nethackdir`). Un fichier absent de
-  l'archive `nhdat` y est cherché (`dlb_fopen()`, `src/dlb.c`). Dans le
-  jeu (`nethack -D`, mode wizard : l'utilisateur doit figurer dans
-  `WIZARDS` du `sysconf`) : `Ctrl-V` vers le niveau 3 (au niveau 1, NetHack
-  refuse l'escalier montant), puis `#wizloaddes` et le nom du niveau.
+  l'archive `nhdat` y est cherché (`dlb_fopen()`, `src/dlb.c`), d'où
+  `#wizloaddes` le charge.
 - Branche (`-n`) : la branche est déclarée dans `dat/dungeon.lua` des
   sources NetHack (blocs entre marqueurs `doom2nethack:begin/end`, remplacés
   à chaque exécution), l'archive `nhdat` est reconstruite par `make dlb` et
@@ -81,7 +132,7 @@ qui explique comment déclarer la branche dans `dat/dungeon.lua` (ce que fait
 passages entre morceaux autres que la chaîne sont perdus, et la sortie Doom
 peut ne pas tomber dans le dernier morceau (avertissement).
 
-En mode wizard, `^V` (téléportation de niveau) permet ensuite d'aller
+En mode wizard, `Ctrl-V` (téléportation de niveau) permet ensuite d'aller
 directement dans la branche.
 
 ## Ce que fait le prototype
