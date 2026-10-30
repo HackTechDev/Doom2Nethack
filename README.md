@@ -85,13 +85,20 @@ choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
   difficulté, sols à dégâts, seuil de lumière, nombre de salles visé,
   largeur et hauteur de la carte, échelle uniforme et couverture. Les plus
   courantes ont un raccourci : `m` mode (`raster`/`rooms`), `n` découpage
-  (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts.
+  (1 à 4 niveaux ou `auto`), `s` difficulté, `h` sols à dégâts. `c`
+  compare la conversion enregistrée de la carte (A) à une conversion
+  avec les options actuelles (B), non enregistrée : côte à côte si le
+  terminal fait au moins 160 colonnes, sinon l'une après l'autre (`Tab`).
+  `g` garde B à la place de A.
 - **Niveaux convertis** : les niveaux de `out/`, classés par section, une
   par fichier WAD. Chaque niveau indique s'il est installé dans NetHack :
   copié dans le répertoire de jeu (et identique), et, pour une branche,
   déclaré dans `dat/dungeon.lua` (« installé, autre version » : le
   fichier copié diffère, par exemple une carte du même nom d'un autre
-  WAD). `Entrée` affiche la carte (`←` `→` : niveaux d'une branche), `i`
+  WAD). `Entrée` affiche la carte en couleurs (murs, portes en jaune, eau
+  en bleu, lave en rouge, escaliers, monstres en rouge — soulignés s'ils
+  sont invisibles —, objets en cyan, zones sombres grisées ; `←` `→` :
+  niveaux d'une branche), `i`
   l'installe dans NetHack, `x` la supprime, `p` lance NetHack en mode
   wizard directement sur le niveau (voir ci-dessous). Un niveau simple
   est copié dans le répertoire de jeu ; une branche est installée par

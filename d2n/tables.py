@@ -85,3 +85,12 @@ OBJECTS = {
     39: ("(", "skeleton key"),          # crâne jaune
     40: ("(", "skeleton key"),          # crâne bleu
 }
+
+# Symbole NetHack des monstres de MONSTERS (aperçu des cartes).
+SYMBOLS = {
+    "human zombie": "Z", "ghoul": "Z", "imp": "i", "fire ant": "a",
+    "soldier": "@", "wolf": "d", "flaming sphere": "e", "gas spore": "e",
+    "human mummy": "M", "giant spider": "s", "ogre": "O",
+    "horned devil": "&", "barbed devil": "&", "lich": "L",
+    "pit fiend": "&", "balrog": "&",
+}

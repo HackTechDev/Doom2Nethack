@@ -17,6 +17,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 import threading
 from dataclasses import dataclass
@@ -25,6 +26,7 @@ from .convert import MAX_HEIGHT, MAX_WIDTH
 from .dungeon import declared
 from .play import play
 from .split import MAX_PARTS
+from .tables import SYMBOLS
 from .wad import Wad, WadError
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -368,28 +370,83 @@ def install_state(level, hackdir=HACKDIR, branches=None):
     return "installé" if same else "installé, autre version"
 
 
-def lua_summary(path):
-    """(description, carte avec les escaliers) d'un niveau .lua."""
+@dataclass
+class LevelView:
+    """Contenu d'un niveau .lua, pour l'aperçu."""
+    grid: list          # lignes de des.map
+    dark: set           # cases sombres
+    stairs: dict        # (x, y) -> "<" ou ">"
+    monsters: dict      # (x, y) -> (nom, invisible)
+    objects: dict       # (x, y) -> (classe, nom)
+    doors: int
+
+    @property
+    def width(self):
+        return max((len(r) for r in self.grid), default=0)
+
+    @property
+    def desc(self):
+        return (f"carte {self.width}x{len(self.grid)}, {self.doors} porte(s), "
+                f"{len(self.monsters)} monstre(s), "
+                f"{len(self.objects)} objet(s), {len(self.dark)} case(s) "
+                f"sombre(s)")
+
+    def cell(self, x, y):
+        """(caractère, nature) de la case : escalier, monstre, objet, ou
+        le terrain de la carte."""
+        if (x, y) in self.stairs:
+            return self.stairs[x, y], "stair"
+        if (x, y) in self.monsters:
+            name, invisible = self.monsters[x, y]
+            return SYMBOLS.get(name, "M"), "invisible" if invisible \
+                else "monster"
+        if (x, y) in self.objects:
+            return self.objects[x, y][0], "object"
+        row = self.grid[y] if y < len(self.grid) else ""
+        c = row[x] if x < len(row) else " "
+        return c, TERRAIN.get(c, "floor")
+
+
+TERRAIN = {"-": "wall", "|": "wall", " ": "rock", "+": "door", "#": "corridor",
+           "}": "water", "L": "lava", "F": "bars", "S": "door"}
+
+
+def parse_lua(path):
     with open(path) as f:
         text = f.read()
     m = re.search(r"map = \[\[\n(.*?)\n\]\]", text, re.S)
-    grid = [list(row) for row in m.group(1).split("\n")] if m else []
-    stairs = [("<", x, y) for x, y in re.findall(
-        r'des\.stair\("up", (\d+),(\d+)\)', text)]
-    stairs += [("<", x, y) for x, y in re.findall(
-        r"region = \{(\d+),(\d+),", text)]
-    stairs += [(">", x, y) for x, y in re.findall(
-        r'des\.stair\("down", (\d+),(\d+)\)', text)]
-    for c, x, y in stairs:
-        x, y = int(x), int(y)
+    grid = m.group(1).split("\n") if m else []
+    stairs = {}
+    for c, pattern in (("<", r'des\.stair\("up", (\d+),(\d+)\)'),
+                       ("<", r"region = \{(\d+),(\d+),"),
+                       (">", r'des\.stair\("down", (\d+),(\d+)\)')):
+        for x, y in re.findall(pattern, text):
+            stairs[int(x), int(y)] = c
+    dark = set()
+    for x1, y, x2 in re.findall(r"dark = dark \| selection\.area\((\d+),(\d+),"
+                                r"(\d+),\d+\)", text):
+        dark.update((x, int(y)) for x in range(int(x1), int(x2) + 1))
+    monsters = {}
+    for line in re.findall(r"des\.monster\(.*", text):
+        m = re.search(r'id = "([^"]+)", x = (\d+), y = (\d+)', line)
+        if m:
+            monsters[int(m.group(2)), int(m.group(3))] = \
+                (m.group(1), "invisible = 1" in line)
+    objects = {(int(x), int(y)): (cls, name) for name, cls, x, y in
+               re.findall(r'des\.object\(\{ id = "([^"]+)", class = "(.)", '
+                          r'x = (\d+), y = (\d+)', text)}
+    return LevelView(grid, dark, stairs, monsters, objects,
+                     text.count("des.door("))
+
+
+def lua_summary(path):
+    """(description, carte avec les escaliers) d'un niveau .lua."""
+    view = parse_lua(path)
+    grid = [list(r) for r in view.grid]
+    for (x, y), c in view.stairs.items():
         if y < len(grid) and x < len(grid[y]):
             grid[y][x] = c
-    width = max((len(r) for r in grid), default=0)
-    desc = (f"carte {width}x{len(grid)}, "
-            f"{text.count('des.door(')} porte(s), "
-            f"{text.count('des.monster(')} monstre(s), "
-            f"{text.count('des.object(')} objet(s)")
-    return desc, ["".join(r) for r in grid]
+    return view.desc, ["".join(r) for r in grid]
 
 
 def rel(path):
@@ -440,6 +497,19 @@ class App:
             self.section = curses.color_pair(1) | curses.A_BOLD
             self.done = curses.color_pair(2)
             self.error = curses.color_pair(3) | curses.A_BOLD
+        # attributs de l'aperçu des cartes, par nature de case
+        colors = {"door": curses.COLOR_YELLOW, "water": curses.COLOR_BLUE,
+                  "lava": curses.COLOR_RED, "bars": curses.COLOR_CYAN,
+                  "monster": curses.COLOR_RED, "invisible": curses.COLOR_RED,
+                  "object": curses.COLOR_CYAN, "stair": curses.COLOR_MAGENTA}
+        self.cell_attr = {k: curses.A_BOLD for k in colors}
+        if curses.has_colors():
+            for i, (k, color) in enumerate(colors.items(), 10):
+                curses.init_pair(i, color, -1)
+                self.cell_attr[k] = curses.color_pair(i)
+        for k in ("monster", "stair", "invisible"):
+            self.cell_attr[k] |= curses.A_BOLD
+        self.cell_attr["invisible"] |= curses.A_UNDERLINE
 
     # dessin
 
@@ -733,9 +803,10 @@ class App:
             count = f"{len(marked)} carte(s) cochée(s) · " if marked else ""
             key, sel = self.menu(
                 "conversion", rows, sel,
-                "Entrée convertir   Espace cocher   a tout cocher   q retour\n"
+                "Entrée convertir   Espace cocher   a tout cocher   "
+                "c comparer   q retour\n"
                 "o options   m mode   n découpage   s difficulté   h sols",
-                keys=" ao" + "".join(CYCLES), live=True,
+                keys=" aoc" + "".join(CYCLES), live=True,
                 info=[f"Destination : {rel(d)}/", *self.opts_lines(),
                       f"{count}{len(names)} carte(s) dans le WAD"])
             if key == "q":
@@ -749,6 +820,8 @@ class App:
                 marked = set() if len(marked) == len(names) else set(names)
             elif key == "o":
                 self.options_menu()
+            elif key == "c":
+                self.compare(names[sel])
             elif key in CYCLES:
                 opt, values = CYCLES[key]
                 i = values.index(self.opts[opt]) \
@@ -867,27 +940,133 @@ class App:
             elif key == "x" and self.confirm(f"Supprimer {rel(lv.path)} ?"):
                 delete_level(s, lv)
 
+    def draw_map(self, y, x, view):
+        """Dessine la carte en couleurs ; retourne la ligne suivante."""
+        for j in range(len(view.grid)):
+            for i in range(view.width):
+                c, kind = view.cell(i, j)
+                attr = self.cell_attr.get(kind, 0)
+                if (i, j) in view.dark and kind in ("floor", "corridor",
+                                                    "door", "wall"):
+                    attr |= curses.A_DIM
+                if c != " ":
+                    self.put(y + j, x + i, c, attr)
+        return y + len(view.grid)
+
+    def legend(self, y, x=1):
+        items = [("|", "wall", "mur"), ("+", "door", "porte"),
+                 ("}", "water", "eau"), ("L", "lava", "lave"),
+                 ("F", "bars", "barreaux"), ("<>", "stair", "escaliers"),
+                 ("Z", "monster", "monstre"),
+                 ("Z", "invisible", "invisible"),
+                 ("(", "object", "objet"), (".", "dark", "sombre")]
+        for c, kind, label in items:
+            attr = curses.A_DIM if kind == "dark" else \
+                self.cell_attr.get(kind, 0)
+            self.put(y, x, c, attr)
+            self.put(y, x + len(c) + 1, label)
+            x += len(c) + len(label) + 3
+
     def show_level(self, section, level):
         i = 0
         while True:
             path = level.parts[i]
-            desc, grid = lua_summary(path)
+            view = parse_lua(path)
             part = f"niveau {i + 1}/{len(level.parts)} : " \
                 if level.split else ""
-            lines = [(f"{part}{rel(path)}", curses.A_BOLD), desc, "",
-                     *grid]
+            y = self.header(f"{section.name} / {level.name}")
+            self.put(y, 1, f"{part}{rel(path)}", curses.A_BOLD)
+            self.put(y + 1, 1, view.desc)
+            y = self.draw_map(y + 3, 1, view)
+            self.legend(y + 1)
             nav = "←→ niveau   " if level.split else ""
-            key = self.pager(
-                f"{section.name} / {level.name}", lines,
-                f"{nav}↑↓ défiler   p jouer   i installer   x supprimer   "
-                "q retour",
-                keys=("p", "i", "x", curses.KEY_LEFT, curses.KEY_RIGHT))
-            if key == curses.KEY_LEFT:
+            self.footer(f"{nav}p jouer   i installer   x supprimer   "
+                        "q retour")
+            c = self.key(wake=True)
+            if c == curses.KEY_LEFT:
                 i = max(i - 1, 0)
-            elif key == curses.KEY_RIGHT:
+            elif c == curses.KEY_RIGHT:
                 i = min(i + 1, len(level.parts) - 1)
-            else:
-                return key
+            elif c in ("p", "i", "x"):
+                return c
+            elif c in BACK or c in ENTER:
+                return "q"
+
+    def compare(self, name):
+        """Compare la conversion enregistrée de `name` à une conversion
+        avec les options actuelles (non enregistrée)."""
+        low = name.lower()
+        d = wad_dir(self.wad)
+        saved = [lv for s in converted_levels(os.path.dirname(d))
+                 if s.path == d for lv in s.levels if lv.name == low]
+        if not saved:
+            self.message(f"{name} n'a pas encore été convertie")
+            return
+        split = self.opts["parts"] != "1"
+        old = next((lv for lv in saved if lv.split == split), saved[0])
+        conv = load_meta(d).get("levels", {}).get(os.path.basename(old.path))
+        old_args = " ".join(conv["args"]) + (
+            f" -n {conv['parts']}" if conv["parts"] != "1" else "") \
+            if conv else "(options inconnues)"
+        tmp = tempfile.mkdtemp(prefix="doom2nethack-")
+        try:
+            self.status(f"Conversion de {name} avec les options actuelles...")
+            ok, lines = run_conversion(self.wad, name, self.opts, tmp)
+            if not ok:
+                self.pager(f"conversion de {name} : ÉCHEC",
+                           [(line, self.error) for line in lines])
+                return
+            new = converted_levels(tmp)[0].levels[0]
+            args = conversion_args(self.opts)
+            new_args = " ".join(args) + \
+                (f" -n {self.opts['parts']}" if split else "")
+            key = self.compare_view(name, [
+                ("conversion enregistrée", old_args, old.parts),
+                ("options actuelles", new_args, new.parts)])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        if key == "g":
+            self.convert([name])
+
+    def compare_view(self, name, sides):
+        """Deux conversions côte à côte (l'une après l'autre si l'écran est
+        trop étroit) ; retourne "g" pour garder la seconde, ou "q"."""
+        i, shown = 0, 0
+        n = max(len(parts) for *_, parts in sides)
+        while True:
+            views = [parse_lua(parts[min(i, len(parts) - 1)])
+                     for *_, parts in sides]
+            w = self.scr.getmaxyx()[1]
+            width = max(v.width for v in views) + 3
+            both = w >= 2 * width + 1
+            y = self.header(f"comparaison de {name}")
+            cols = [(0, 1), (1, width + 1)] if both else [(shown, 1)]
+            for k, x in cols:
+                label, args, parts = sides[k]
+                view = views[k]
+                part = f" (niveau {min(i, len(parts) - 1) + 1}/" \
+                    f"{len(parts)})" if n > 1 else ""
+                cut = width - 2 if both else w - 2
+                self.put(y, x, f"{'AB'[k]} : {label}{part}"[:cut],
+                         curses.A_BOLD)
+                self.put(y + 1, x, args[:cut])
+                self.put(y + 2, x, view.desc[:cut])
+                end = self.draw_map(y + 4, x, view)
+            self.legend(end + 1)
+            nav = "←→ niveau   " if n > 1 else ""
+            other = "Tab A/B   " if not both else ""
+            self.footer(f"{nav}{other}g garder B (remplace A)   q retour")
+            c = self.key(wake=True)
+            if c == curses.KEY_LEFT:
+                i = max(i - 1, 0)
+            elif c == curses.KEY_RIGHT:
+                i = min(i + 1, n - 1)
+            elif c == "\t":
+                shown = 1 - shown
+            elif c == "g":
+                return c
+            elif c in BACK:
+                return "q"
 
     def install(self, section, level):
         if not level.split:

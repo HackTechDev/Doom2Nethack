@@ -316,6 +316,24 @@ class TestTui(unittest.TestCase):
         self.assertEqual(tui.install_state(branch, hack, branches),
                          "installé")
 
+    def test_parse_lua(self):
+        res = convert(Wad(self.wad).load_level("MAP01"))
+        path = os.path.join(self.tmp.name, "map01.lua")
+        with open(path, "w") as f:
+            f.write(to_lua(res, "t3.wad"))
+        view = tui.parse_lua(path)
+        self.assertEqual(view.grid, res.grid)
+        self.assertEqual(view.dark, res.dark)
+        self.assertEqual(view.stairs, {res.upstair: "<", res.downstair: ">"})
+        self.assertEqual(len(view.monsters), len(res.monsters))
+        self.assertEqual(len(view.objects), len(res.objects))
+        self.assertEqual(view.cell(*res.upstair), ("<", "stair"))
+        x, y, name, invisible, _ = res.monsters[0]
+        self.assertEqual(view.cell(x, y)[1],
+                         "invisible" if invisible else "monster")
+        x, y, _ = res.doors[0]
+        self.assertEqual(view.cell(x, y), ("+", "door"))
+
     def test_bad_map(self):
         ok, lines = tui.run_conversion(self.wad, "E9M9",
                                        dict(tui.DEFAULT_OPTS), self.out)
