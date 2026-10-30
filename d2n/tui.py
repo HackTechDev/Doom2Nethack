@@ -41,7 +41,9 @@ NETHACK_SRC = os.environ.get("NETHACK_SRC",
                              "/home/sgond/app/Nethack500_Lubuntu2604")
 DUNGEON_LUA = os.path.join(NETHACK_SRC, "dat", "dungeon.lua")
 META = "doom2nethack.json"
-LAST_WAD = os.path.join(OUT_DIR, ".last-wad")
+RECENT_WADS = os.path.join(OUT_DIR, ".recent-wads.json")
+LAST_WAD = os.path.join(OUT_DIR, ".last-wad")       # ancien format
+MAX_RECENT = 10
 
 DEFAULT_OPTS = {"mode": "raster", "parts": "1", "skill": "medium",
                 "hazards": "none", "dark": 144, "rooms": 0,
@@ -455,19 +457,60 @@ def rel(path):
     return path if r.startswith("..") else r
 
 
-def last_wad():
+def recent_wads(path=RECENT_WADS):
+    """WAD récents, le dernier utilisé d'abord (fichiers existants)."""
     try:
-        with open(LAST_WAD) as f:
-            p = f.read().strip()
-        return p if os.path.isfile(p) else None
+        with open(path) as f:
+            wads = [w for w in json.load(f) if isinstance(w, str)]
+    except (OSError, ValueError, TypeError):
+        wads = []
+        if path == RECENT_WADS:             # reprise de l'ancien format
+            try:
+                with open(LAST_WAD) as f:
+                    wads = [f.read().strip()]
+            except OSError:
+                pass
+    return [w for w in wads if os.path.isfile(w)]
+
+
+def last_wad():
+    return next(iter(recent_wads()), None)
+
+
+def remember_wad(wad, path=RECENT_WADS):
+    """Met `wad` en tête des WAD récents."""
+    wads = [wad] + [w for w in recent_wads(path) if w != wad]
+    save_recent(wads, path)
+
+
+def forget_wad(wad, path=RECENT_WADS):
+    save_recent([w for w in recent_wads(path) if w != wad], path)
+
+
+def save_recent(wads, path=RECENT_WADS):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(wads[:MAX_RECENT], f, indent=2)
+
+
+def complete_path(text, base):
+    """Complétion d'un chemin (relatif à `base`) : (texte complété,
+    candidats)."""
+    full = os.path.join(base, os.path.expanduser(text))
+    head, tail = os.path.split(full)
+    try:
+        names = sorted(n for n in os.listdir(head or ".")
+                       if n.startswith(tail) and
+                       (tail.startswith(".") or not n.startswith(".")))
     except OSError:
-        return None
-
-
-def remember_wad(path):
-    os.makedirs(OUT_DIR, exist_ok=True)
-    with open(LAST_WAD, "w") as f:
-        f.write(path + "\n")
+        return text, []
+    if not names:
+        return text, []
+    common = os.path.commonprefix(names)
+    done = text + common[len(tail):]
+    if len(names) == 1 and os.path.isdir(os.path.join(head, common)):
+        done += "/"
+    return done, names
 
 
 # --- interface --------------------------------------------------------------
@@ -748,19 +791,29 @@ class App:
                 except ValueError as e:
                     self.message(str(e))
 
-    def prompt(self, label, value=""):
-        """Saisie d'une ligne dans la barre du bas ; None si Échap."""
+    def prompt(self, label, value="", complete=None):
+        """Saisie d'une ligne dans la barre du bas ; None si Échap.
+        `complete(texte)` -> (texte complété, candidats) : complétion par
+        Tab, les candidats s'affichant au-dessus de la saisie."""
         curses.curs_set(1)
+        shown = []
         try:
             while True:
                 h, w = self.scr.getmaxyx()
                 text = f" {label} {value}"
-                self.put(h - 1, 0, text.ljust(w), curses.A_REVERSE)
+                if shown:
+                    line = "  ".join(shown)
+                    self.put(h - 2, 0, f" {line}"[:w].ljust(w))
+                self.put(h - 1, 0, text[-(w - 1):].ljust(w), curses.A_REVERSE)
                 try:
                     self.scr.move(h - 1, min(len(text), w - 2))
                 except curses.error:
                     pass
                 c = self.key()
+                if c == "\t" and complete:
+                    value, names = complete(value)
+                    shown = names if len(names) > 1 else []
+                    continue
                 if c in ENTER:
                     return value
                 if c == "\x1b":
@@ -1136,7 +1189,8 @@ class App:
         self.redraw()
 
     def choose_wad(self):
-        """Explorateur de fichiers ; retourne True si un WAD est choisi."""
+        """Explorateur de fichiers, avec les WAD récents en tête ; retourne
+        True si un WAD est choisi."""
         d = os.path.dirname(self.wad) if self.wad else os.getcwd()
         came_from = None
         while True:
@@ -1150,26 +1204,57 @@ class App:
                     and os.path.isdir(os.path.join(d, e))]
             wads = [e for e in entries if e.lower().endswith(".wad")
                     and os.path.isfile(os.path.join(d, e))]
-            names = ["..", *dirs, *wads]
-            rows = [("../", True, 0)] + \
-                [(f"{e}/", True, self.section) for e in dirs] + \
-                [(e, True, curses.A_BOLD) for e in wads]
-            if came_from in names:
-                sel = names.index(came_from)
-            elif self.wad and os.path.dirname(self.wad) == d and \
-                    os.path.basename(self.wad) in names:
-                sel = names.index(os.path.basename(self.wad))
+            recent = recent_wads()
+            rows, paths = [], []
+            if recent:
+                rows.append(("WAD récents", False, self.section))
+                paths.append(None)
+                for w in recent:
+                    rows.append((f"  {rel(w)}", True, curses.A_BOLD))
+                    paths.append(w)
+                rows.append(("", False, 0))
+                paths.append(None)
+            rows.append((f"Répertoire {d}", False, self.section))
+            paths.append(None)
+            first = len(rows)
+            rows += [("  ../", True, 0)] + \
+                [(f"  {e}/", True, 0) for e in dirs] + \
+                [(f"  {e}", True, curses.A_BOLD) for e in wads]
+            paths += [os.path.normpath(os.path.join(d, e))
+                      for e in ["..", *dirs, *wads]]
+            if came_from in paths[first:]:
+                sel = first + paths[first:].index(came_from)
+            elif self.wad in paths[first:]:
+                sel = first + paths[first:].index(self.wad)
             else:
-                sel = 1 + len(dirs) if wads else 0
-            key, sel = self.menu("choisir un fichier WAD", rows, sel,
-                                 "Entrée ouvrir   q annuler",
-                                 info=[f"Répertoire : {d}"])
+                sel = first + 1 + len(dirs) if wads else first
+            key, sel = self.menu(
+                "choisir un fichier WAD", rows, sel,
+                "Entrée ouvrir   / saisir un chemin   x oublier un WAD "
+                "récent   q annuler", keys="/x")
             if key == "q":
                 return False
-            p = os.path.normpath(os.path.join(d, names[sel]))
+            came_from = None
+            if key == "x":
+                if sel < first:
+                    forget_wad(paths[sel])
+                continue
+            if key == "/":
+                text = self.prompt("Chemin (Tab : compléter) :",
+                                   d.rstrip("/") + "/",
+                                   lambda t: complete_path(t, d))
+                if not text:
+                    continue
+                p = os.path.normpath(os.path.join(d,
+                                                  os.path.expanduser(text)))
+                if not os.path.exists(p):
+                    self.message(f"Introuvable : {p}")
+                    continue
+            else:
+                p = paths[sel]
             if os.path.isdir(p):
-                came_from = os.path.basename(d) if names[sel] == ".." \
-                    else None
+                if sel == first and key != "/":         # ../
+                    came_from = d
                 d = p
                 continue
             try:
@@ -1177,12 +1262,11 @@ class App:
                     raise WadError("aucun niveau dans ce WAD")
             except (WadError, OSError) as e:
                 self.message(f"Erreur : {e}")
-                came_from = names[sel]
+                came_from = p
                 continue
             self.wad = p
             remember_wad(p)
             return True
-
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv

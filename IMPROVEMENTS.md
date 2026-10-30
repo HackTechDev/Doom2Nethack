@@ -125,10 +125,13 @@ arrière-plan (barre de progression, journal des conversions) et avec toutes les
 `--samples` (écran d'options), niveaux convertis classés par WAD (aperçu,
 installation, suppression, état dans NetHack, lancement de NetHack sur le
 niveau), aperçu en couleurs, comparaison côte à côte de deux conversions
-d'une carte, retrait des branches Doom (`--restore`). Pistes pour aller
-plus loin :
-- garder une liste des WAD récents, et saisir un chemin au clavier dans
-  l'explorateur de fichiers.
+d'une carte, retrait des branches Doom (`--restore`), WAD récents et
+saisie d'un chemin avec complétion. Pistes pour aller plus loin :
+- garder les options de conversion d'une session à l'autre ;
+- comparer deux conversions enregistrées (deux WAD, ou niveau simple et
+  branche d'une même carte) ;
+- montrer dans l'aperçu le nom d'un monstre ou d'un objet sous le
+  curseur.
 
 ### Aperçu graphique
 Un aperçu HTML superposant le plan Doom (linedefs) et la grille NetHack

@@ -128,7 +128,11 @@ sauvegarder), on revient au menu. Hors du menu :
 `D2N_PLAY_LOG=fichier` enregistre les touches envoyées, pour le
 débogage.
 
-`Choisir un autre fichier WAD` ouvre un explorateur de fichiers.
+`Choisir un autre fichier WAD` ouvre un explorateur de fichiers. Il
+liste d'abord les 10 derniers WAD utilisés (`x` en retire un de la
+liste, gardée dans `out/.recent-wads.json`), puis le contenu du
+répertoire courant. `/` permet de saisir un chemin (absolu, relatif au
+répertoire affiché ou commençant par `~`), avec complétion par `Tab`.
 `Retirer les branches Doom de NetHack` lance
 `convertDoom2Nethack.sh --restore` (le script demande confirmation).
 Navigation : flèches, `Page↑`/`Page↓`, `Entrée`, `q` ou `Échap` pour

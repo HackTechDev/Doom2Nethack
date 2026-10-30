@@ -334,6 +334,28 @@ class TestTui(unittest.TestCase):
         x, y, _ = res.doors[0]
         self.assertEqual(view.cell(x, y), ("+", "door"))
 
+    def test_recent_and_complete(self):
+        path = os.path.join(self.out, "recent.json")
+        other = os.path.join(self.tmp.name, "autre.wad")
+        make_test_wad.write_wad(other, make_test_wad.build())
+        self.assertEqual(tui.recent_wads(path), [])
+        tui.remember_wad(self.wad, path)
+        tui.remember_wad(other, path)
+        tui.remember_wad(self.wad, path)
+        self.assertEqual(tui.recent_wads(path), [self.wad, other])
+        os.remove(other)                        # fichier disparu : ignoré
+        self.assertEqual(tui.recent_wads(path), [self.wad])
+        tui.forget_wad(self.wad, path)
+        self.assertEqual(tui.recent_wads(path), [])
+
+        os.mkdir(os.path.join(self.tmp.name, "Mon dossier"))
+        self.assertEqual(tui.complete_path("Mon d", self.tmp.name),
+                         ("Mon dossier/", ["Mon dossier"]))
+        text, names = tui.complete_path("Mon", self.tmp.name)
+        self.assertEqual((text, names),
+                         ("Mon ", ["Mon Wad.wad", "Mon dossier"]))
+        self.assertEqual(tui.complete_path("zz", self.tmp.name), ("zz", []))
+
     def test_bad_map(self):
         ok, lines = tui.run_conversion(self.wad, "E9M9",
                                        dict(tui.DEFAULT_OPTS), self.out)
