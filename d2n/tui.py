@@ -565,6 +565,17 @@ def complete_path(text, base):
 
 # --- interface --------------------------------------------------------------
 
+def cursor_visible(visible):
+    """Affiche ou masque le curseur, si le terminal le permet."""
+    try:
+        curses.curs_set(visible)
+    except curses.error:
+        pass
+
+
+LOGO = [("█▀▄ █▀█ █▀█ █▀▄▀█", "█▄ █ █▀▀ ▀█▀ █ █ ▄▀▄ ▄▀▀ █▄▀"),
+        ("█▄▀ █▄█ █▄█ █ ▀ █", "█ ▀█ ██▄  █  █▀█ █▀█ ▀▄▄ █ █")]
+
 UP = (curses.KEY_UP,)
 DOWN = (curses.KEY_DOWN,)
 JOURNAL = "l"
@@ -579,17 +590,8 @@ class App:
         self.opts = dict(DEFAULT_OPTS)
         self.jobs = Jobs()
         self.seen = 0               # dernière version de self.jobs affichée
-        curses.curs_set(0)
-        self.title = curses.A_REVERSE | curses.A_BOLD
-        self.section = self.done = self.error = curses.A_BOLD
-        if curses.has_colors():
-            curses.use_default_colors()
-            curses.init_pair(1, curses.COLOR_YELLOW, -1)
-            curses.init_pair(2, curses.COLOR_GREEN, -1)
-            curses.init_pair(3, curses.COLOR_RED, -1)
-            self.section = curses.color_pair(1) | curses.A_BOLD
-            self.done = curses.color_pair(2)
-            self.error = curses.color_pair(3) | curses.A_BOLD
+        cursor_visible(0)
+        self.init_theme()
         # attributs de l'aperçu des cartes, par nature de case
         colors = {"door": curses.COLOR_YELLOW, "water": curses.COLOR_BLUE,
                   "lava": curses.COLOR_RED, "bars": curses.COLOR_CYAN,
@@ -604,7 +606,50 @@ class App:
             self.cell_attr[k] |= curses.A_BOLD
         self.cell_attr["invisible"] |= curses.A_UNDERLINE
 
+    def init_theme(self):
+        """Couleurs de l'interface ; sans couleurs, gras et vidéo inverse."""
+        B, R, D = curses.A_BOLD, curses.A_REVERSE, curses.A_DIM
+        t = {"bar": R, "bar_title": R | B, "key": B, "sel": R | B,
+             "label": B, "accent": B, "dim": D, "ok": B, "warn": B,
+             "busy": B, "error": B, "msg": R | B, "logo1": B, "logo2": B,
+             "path": B}
+        if curses.has_colors():
+            curses.use_default_colors()
+            pairs = {   # nom : (texte, fond, attribut)
+                "bar": (curses.COLOR_WHITE, curses.COLOR_BLUE, 0),
+                "bar_title": (curses.COLOR_WHITE, curses.COLOR_BLUE, B),
+                "key": (curses.COLOR_BLACK, curses.COLOR_CYAN, 0),
+                "sel": (curses.COLOR_BLACK, curses.COLOR_CYAN, 0),
+                "label": (curses.COLOR_CYAN, -1, 0),
+                "accent": (curses.COLOR_YELLOW, -1, B),
+                "ok": (curses.COLOR_GREEN, -1, 0),
+                "warn": (curses.COLOR_YELLOW, -1, 0),
+                "busy": (curses.COLOR_MAGENTA, -1, B),
+                "error": (curses.COLOR_RED, -1, B),
+                "msg": (curses.COLOR_BLACK, curses.COLOR_YELLOW, 0),
+                "logo1": (curses.COLOR_RED, -1, B),
+                "logo2": (curses.COLOR_YELLOW, -1, B),
+            }
+            for i, (name, (fg, bg, attr)) in enumerate(pairs.items(), 20):
+                curses.init_pair(i, fg, bg)
+                t[name] = curses.color_pair(i) | attr
+        self.theme = t
+        self.section = t["accent"]
+        self.done = t["ok"]
+        self.error = t["error"]
+
     # dessin
+
+    def draw(self, y, x, parts, attr=0):
+        """Écrit un texte (str) ou une suite de (texte, attribut) ;
+        retourne la colonne suivante."""
+        if isinstance(parts, str):
+            parts = [(parts, 0)]
+        for part in parts:
+            text, a = part if isinstance(part, tuple) else (part, 0)
+            self.put(y, x, text, a | attr)
+            x += len(text)
+        return x
 
     def put(self, y, x, text, attr=0):
         h, w = self.scr.getmaxyx()
@@ -618,25 +663,42 @@ class App:
     def header(self, title):
         self.scr.erase()
         w = self.scr.getmaxyx()[1]
+        t = self.theme
         self.seen = self.jobs.version
         status = self.jobs_status()
-        self.put(0, 0, f" Doom2NetHack : {title}".ljust(w), self.title)
+        self.put(0, 0, " " * w, t["bar"])
+        x = self.draw(0, 0, [(" ◆ Doom2NetHack ", t["bar_title"]),
+                             ("› ", t["bar"]), (title, t["bar_title"])])
         if status:
-            self.put(0, max(w - len(status) - 1, len(title) + 18), status,
-                     self.title)
-        self.put(1, 1, "Fichier WAD : ", curses.A_BOLD)
-        self.put(1, 15, rel(self.wad) if self.wad else "(aucun)")
+            self.put(0, max(w - len(status) - 1, x + 2), status, t["bar"])
+        self.draw(1, 1, [("Fichier WAD  ", t["label"]),
+                         (rel(self.wad) if self.wad else "(aucun)",
+                          t["path"])])
+        self.put(2, 0, "─" * w, t["dim"])
         return 3
 
-    def footer(self, text, attr=curses.A_REVERSE):
-        """Barre du bas (plusieurs lignes séparées par \\n)."""
+    def footer(self, text, attr=None):
+        """Barre du bas (plusieurs lignes séparées par \\n).  Sans `attr`,
+        chaque groupe « touche action » (séparés par 3 espaces) montre la
+        touche en surbrillance."""
         h, w = self.scr.getmaxyx()
+        t = self.theme
         lines = text.split("\n")
         for k, line in enumerate(lines):
-            self.put(h - len(lines) + k, 0, f" {line}".ljust(w), attr)
+            y = h - len(lines) + k
+            if attr is not None:
+                self.put(y, 0, f" {line}".ljust(w), attr)
+                continue
+            self.put(y, 0, " " * w, t["bar"])
+            x = 1
+            for group in re.split(r" {3,}", line.strip()):
+                key, _, label = group.partition(" ")
+                x = self.draw(y, x, [(f" {key} ", t["key"]),
+                                     (f" {label}  " if label else "  ",
+                                      t["bar"])])
 
     def status(self, text):
-        self.footer(text)
+        self.footer(text, self.theme["bar"])
         self.scr.refresh()
 
     def jobs_status(self):
@@ -645,11 +707,11 @@ class App:
             width = 10
             fill = width * j.done // max(j.total, 1)
             name = j.current[1] if j.current else ""
-            return (f"[{'#' * fill}{'.' * (width - fill)}] "
+            return (f"⟳ {'█' * fill}{'░' * (width - fill)} "
                     f"{j.done}/{j.total} {name} ")
         if j.total:
             failed = f", {j.failed} échec(s)" if j.failed else ""
-            return f"{j.done} conversion(s) terminée(s){failed} · l journal "
+            return f"✔ {j.done} conversion(s) terminée(s){failed} · l journal "
         return ""
 
     def key(self, wake=False):
@@ -670,11 +732,11 @@ class App:
                 return None
 
     def message(self, text):
-        self.footer(f"{text}  (une touche pour continuer)")
+        self.footer(f"{text}  (une touche pour continuer)", self.theme["msg"])
         self.key()
 
     def confirm(self, question):
-        self.footer(f"{question} [o/N]")
+        self.footer(f"{question} [o/N]", self.theme["msg"])
         return self.key() in ("o", "O", "y", "Y")
 
     # listes
@@ -694,7 +756,7 @@ class App:
         while True:
             y0 = self.header(title)
             for i, line in enumerate(info):
-                self.put(y0 + i, 1, line)
+                self.draw(y0 + i, 1, line)
             y0 += len(info) + bool(info)
             h, w = self.scr.getmaxyx()
             n = max(h - 1 - footer.count("\n") - y0, 1)
@@ -703,10 +765,17 @@ class App:
                 top = sel - 1               # garder le titre de section
             for k, (text, selectable, attr) in enumerate(rows[top:top + n]):
                 if top + k == sel:
-                    self.put(y0 + k, 1, f" {text}".ljust(w - 2),
-                             attr | curses.A_REVERSE)
+                    sel_attr = self.theme["sel"]
+                    self.put(y0 + k, 1, " " * (w - 2), sel_attr)
+                    plain = text if isinstance(text, str) else \
+                        "".join(p[0] if isinstance(p, tuple) else p
+                                for p in text)
+                    self.put(y0 + k, 1, f" ▸ {plain}"[:w - 2], sel_attr)
                 else:
-                    self.put(y0 + k, 1, f" {text}", attr)
+                    self.draw(y0 + k, 1, [("   " if selectable else " ", 0)] + (
+                        [(text, attr)] if isinstance(text, str) else
+                        [(p, attr) if isinstance(p, str) else p
+                         for p in text]))
             self.footer(footer)
             c = self.key(wake=True)
             pos = ok.index(sel)
@@ -778,17 +847,31 @@ class App:
         sel = 0
         while True:
             branches = declared_branches()
-            rows = [("Convertir une carte du WAD", True, 0),
-                    ("Niveaux convertis", True, 0),
-                    ("Journal des conversions", True, 0),
-                    ("Choisir un autre fichier WAD", True, 0),
-                    (f"Retirer les branches Doom de NetHack "
-                     f"({len(branches)} déclarée(s))", bool(branches), 0
-                     if branches else curses.A_DIM),
-                    ("Quitter", True, 0)]
+            t = self.theme
+            entries = [
+                ("Convertir des cartes", f"du WAD vers {rel(OUT_DIR)}/<WAD>/",
+                 True),
+                ("Niveaux convertis", "aperçu, installation, jouer", True),
+                ("Journal des conversions",
+                 f"{len(self.jobs.results)} résultat(s)", True),
+                ("Choisir un autre WAD", "WAD récents, explorateur", True),
+                ("Retirer les branches Doom",
+                 f"{len(branches)} déclarée(s) dans dungeon.lua",
+                 bool(branches)),
+                ("Quitter", "", True)]
+            rows = [([(f"{label:<28}", 0 if on else t["dim"]),
+                      (desc, t["dim"])], on, 0)
+                    for label, desc, on in entries]
+            h = self.scr.getmaxyx()[0]
+            info = [[("  ", 0), (doom, t["logo1"]), ("   ", 0),
+                     ("━▶" if i else "  ", t["dim"]), ("   ", 0),
+                     (nethack, t["logo2"])]
+                    for i, (doom, nethack) in enumerate(LOGO)] \
+                + [[("  conversion de niveaux Doom en niveaux NetHack",
+                     t["dim"])]] if h >= 18 else []
             key, sel = self.menu("menu principal", rows, sel,
                                  "↑↓ choisir   Entrée valider   "
-                                 "l journal   q quitter")
+                                 "l journal   q quitter", info=info)
             if sel == 4 and key == "\n":
                 self.shell([SCRIPT, "--restore"])
                 continue
@@ -808,22 +891,34 @@ class App:
         dark = f"sombre si lumière < {o['dark']}" if o["dark"] \
             else "tout éclairé"
         rooms = f"{o['rooms']} salles" if o["rooms"] else "salles auto"
-        return [f"Options : mode {o['mode']} · découpage {o['parts']} · "
-                f"difficulté {o['skill']} · sols {o['hazards']} · {dark}",
-                f"          carte {o['width']}x{o['height']} "
-                f"{'à échelle uniforme' if o['keep_aspect'] else 'étirée'} · "
-                f"couverture {o['coverage']} · {rooms}"]
+        t = self.theme
+        v = curses.A_BOLD
+        dot = (" · ", t["dim"])
+        return [[("Options      ", t["label"]), ("mode ", 0), (o["mode"], v),
+                 dot, ("découpage ", 0), (o["parts"], v), dot,
+                 ("difficulté ", 0), (o["skill"], v), dot, ("sols ", 0),
+                 (o["hazards"], v), dot, (dark, v)],
+                [("             ", 0), ("carte ", 0),
+                 (f"{o['width']}x{o['height']}", v),
+                 (" à échelle uniforme" if o["keep_aspect"] else " étirée",
+                  0), dot, ("couverture ", 0), (str(o["coverage"]), v), dot,
+                 (rooms, v)]]
 
     def options_menu(self):
         sel = 0
         while True:
-            rows = [(f"{label:<18} {option_text(k, self.opts[k]):<18} {help}",
-                     True, 0 if self.opts[k] == DEFAULT_OPTS[k]
-                     else curses.A_BOLD) for k, label, _, help in OPTIONS]
+            t = self.theme
+            rows = [([(f"{label:<18} ", 0),
+                      (f"{option_text(k, self.opts[k]):<18} ",
+                       curses.A_BOLD if self.opts[k] == DEFAULT_OPTS[k]
+                       else t["accent"]),
+                      (help, t["dim"])], True, 0)
+                    for k, label, _, help in OPTIONS]
             rows += [("", False, 0), ("Valeurs par défaut", True, 0)]
             key, sel = self.menu("options de conversion", rows, sel,
                                  "Entrée changer   q retour",
-                                 info=["En gras : valeur modifiée."])
+                                 info=[[("En jaune : ", t["accent"]),
+                                        ("valeur modifiée", t["dim"])]])
             if key == "q":
                 return
             if sel >= len(OPTIONS):
@@ -845,7 +940,7 @@ class App:
         """Saisie d'une ligne dans la barre du bas ; None si Échap.
         `complete(texte)` -> (texte complété, candidats) : complétion par
         Tab, les candidats s'affichant au-dessus de la saisie."""
-        curses.curs_set(1)
+        cursor_visible(1)
         shown = []
         try:
             while True:
@@ -854,7 +949,8 @@ class App:
                 if shown:
                     line = "  ".join(shown)
                     self.put(h - 2, 0, f" {line}"[:w].ljust(w))
-                self.put(h - 1, 0, text[-(w - 1):].ljust(w), curses.A_REVERSE)
+                self.put(h - 1, 0, text[-(w - 1):].ljust(w),
+                         self.theme["msg"])
                 try:
                     self.scr.move(h - 1, min(len(text), w - 2))
                 except curses.error:
@@ -875,7 +971,7 @@ class App:
                 elif isinstance(c, str) and c.isprintable():
                     value += c
         finally:
-            curses.curs_set(0)
+            cursor_visible(0)
 
     def convert_menu(self):
         if not self.wad and not self.choose_wad():
@@ -890,28 +986,35 @@ class App:
         sel = 0
         while True:
             rows = []
+            t = self.theme
             for name in names:
                 low = name.lower()
-                marks = []
+                parts = [("■ " if name in marked else "□ ",
+                          t["accent"] if name in marked else t["dim"]),
+                         (f"{name:<9}", curses.A_BOLD)]
                 if os.path.isfile(os.path.join(d, f"{low}.lua")):
-                    marks.append("converti")
+                    parts.append(("✔ converti  ", t["ok"]))
                 if os.path.isdir(os.path.join(d, low)):
-                    marks.append("branche")
+                    parts.append(("✔ branche  ", t["label"]))
                 state = self.jobs.state(self.wad, name)
                 if state:
-                    marks.append(state)
-                star = "*" if name in marked else " "
-                rows.append((f"{star} {name:<8} {', '.join(marks)}", True,
-                             self.done if marks else 0))
-            count = f"{len(marked)} carte(s) cochée(s) · " if marked else ""
+                    parts.append((f"⟳ {state}" if state.startswith("conv")
+                                  else f"… {state}",
+                                  t["busy"] if state.startswith("conv")
+                                  else t["warn"]))
+                rows.append((parts, True, 0))
+            count = [(f"{len(marked)} carte(s) cochée(s)", t["accent"]),
+                     (" · ", t["dim"])] if marked else []
             key, sel = self.menu(
                 "conversion", rows, sel,
                 "Entrée convertir   Espace cocher   a tout cocher   "
                 "c comparer   q retour\n"
                 "o options   m mode   n découpage   s difficulté   h sols",
                 keys=" aoc" + "".join(CYCLES), live=True,
-                info=[f"Destination : {rel(d)}/", *self.opts_lines(),
-                      f"{count}{len(names)} carte(s) dans le WAD"])
+                info=[[("Destination  ", t["label"]), (f"{rel(d)}/", t["path"])],
+                      *self.opts_lines(),
+                      [("Cartes       ", t["label"]), *count,
+                       (f"{len(names)} dans le WAD", 0)]])
             if key == "q":
                 return
             if key == "refresh":
@@ -963,13 +1066,17 @@ class App:
             for wad, name, ok, lines in results:
                 carte = next((line.split(" : ", 1)[1] for line in lines
                               if " : carte " in line), "")
-                rows.append((f"{name:<8} {'ok   ' if ok else 'ÉCHEC'}  "
-                             f"{os.path.basename(wad):<16} {carte}", True,
-                             0 if ok else self.error))
-            waiting = [f"   {n:<8} {self.jobs.state(w, n)}"
+                rows.append(([(f"{name:<9}", curses.A_BOLD),
+                              ("✔ ok     " if ok else "✘ ÉCHEC  ",
+                               self.done if ok else self.error),
+                              (f"{os.path.basename(wad):<16} ",
+                               self.theme["label"]),
+                              (carte, self.theme["dim"])], True, 0))
+            waiting = [[("   ", 0), (f"{n:<9}", curses.A_BOLD),
+                        (self.jobs.state(w, n), self.theme["busy"])]
                        for w, n in self.jobs.queued()]
-            info = ["Conversions en cours ou en attente :", *waiting] \
-                if waiting else []
+            info = [[("Conversions en cours ou en attente",
+                      self.theme["label"])], *waiting] if waiting else []
             if not rows:
                 rows = [("(aucune conversion terminée)", True, 0)]
             key, sel = self.menu(
@@ -1003,16 +1110,20 @@ class App:
             for s in converted_levels():
                 if rows:
                     rows.append(("", False, 0))
-                wad = f"   ({rel(s.wad)})" if s.wad else ""
-                rows.append((f"{s.name}{wad}", False, self.section))
+                t = self.theme
+                rows.append(([("━━ ", t["dim"]), (s.name, t["accent"]),
+                              (f"  {rel(s.wad)}" if s.wad else "",
+                               t["dim"])], False, 0))
                 for lv in s.levels:
                     kind = f"branche de {len(lv.parts)} niveaux" \
                         if lv.split else "niveau simple"
                     state = install_state(lv, branches=branches)
-                    attr = self.done if state == "installé" else \
-                        curses.A_BOLD if state else 0
-                    rows.append((f"   {lv.name:<8} {kind:<22} {state or ''}",
-                                 True, attr))
+                    rows.append(([(f"{lv.name:<9}", curses.A_BOLD),
+                                  (f"{kind:<22} ", t["dim"]),
+                                  (f"✔ {state}" if state == "installé"
+                                   else f"! {state}" if state else "",
+                                   t["ok"] if state == "installé"
+                                   else t["warn"])], True, 0))
                     entries.append((s, lv))
             if not entries:
                 self.message(f"Aucun niveau converti dans {rel(OUT_DIR)}/")
@@ -1021,9 +1132,10 @@ class App:
                 (i for i, r in enumerate(rows) if r[1]), entries)}
             sel = next((i for i, (_, lv) in index.items()
                         if lv.path == current), sel)
-            info = [f"Répertoire de jeu : {HACKDIR}",
-                    "Branches Doom dans dungeon.lua : "
-                    + (", ".join(branches) or "aucune")]
+            info = [[("Jeu          ", self.theme["label"]),
+                     (HACKDIR, self.theme["path"])],
+                    [("dungeon.lua  ", self.theme["label"]),
+                     (", ".join(branches) or "aucune branche Doom", 0)]]
             key, sel = self.menu(
                 "niveaux convertis", rows, sel,
                 "Entrée voir   p jouer   i installer dans NetHack   "
@@ -1309,19 +1421,22 @@ class App:
             recent = recent_wads()
             rows, paths = [], []
             if recent:
-                rows.append(("WAD récents", False, self.section))
+                rows.append(([("━━ ", self.theme["dim"]),
+                              ("WAD récents", self.section)], False, 0))
                 paths.append(None)
                 for w in recent:
-                    rows.append((f"  {rel(w)}", True, curses.A_BOLD))
+                    rows.append((f"◆ {rel(w)}", True, self.theme["accent"]))
                     paths.append(w)
                 rows.append(("", False, 0))
                 paths.append(None)
-            rows.append((f"Répertoire {d}", False, self.section))
+            rows.append(([("━━ ", self.theme["dim"]),
+                          ("Répertoire ", self.section),
+                          (d, self.theme["dim"])], False, 0))
             paths.append(None)
             first = len(rows)
-            rows += [("  ../", True, 0)] + \
-                [(f"  {e}/", True, 0) for e in dirs] + \
-                [(f"  {e}", True, curses.A_BOLD) for e in wads]
+            rows += [("▲ ../", True, self.theme["dim"])] + \
+                [(f"▸ {e}/", True, self.theme["label"]) for e in dirs] + \
+                [(f"◆ {e}", True, self.theme["accent"]) for e in wads]
             paths += [os.path.normpath(os.path.join(d, e))
                       for e in ["..", *dirs, *wads]]
             if came_from in paths[first:]:

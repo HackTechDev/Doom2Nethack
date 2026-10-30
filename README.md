@@ -67,7 +67,9 @@ Le script vérifie que Python 3 et son module `curses` sont présents, puis
 lance `menuDoom2Nethack.py` (qu'on peut aussi lancer directement). Comme
 `convertDoom2Nethack.sh`, il tient compte des variables `HACKDIR` et
 `NETHACK`. Sans argument, le menu reprend le dernier WAD utilisé (ou propose d'en
-choisir un). Il affiche le fichier WAD utilisé et offre deux menus :
+choisir un). L'interface est en couleurs (8 couleurs standard, thème
+dans `App.init_theme()` de `d2n/tui.py`) ; dans un terminal sans
+couleurs, elle se rabat sur le gras et la vidéo inverse. Il affiche le fichier WAD utilisé et offre deux menus :
 
 - **Convertir une carte du WAD** : liste les cartes du WAD ; `Entrée`
   convertit la carte choisie dans `out/<WAD sans .wad>/` (par exemple
