@@ -17,6 +17,10 @@ WAD, niveaux convertis, journal des conversions.*
 NetHack en mode wizard avec la touche `p` du menu. Les zones sombres du
 niveau Doom restent dans le noir (sol gris) ; `▮` : portes.*
 
+Ces captures sont des images SVG produites à partir de captures du
+terminal (tmux) par `docs/ansi2svg.py` ; son en-tête explique comment les
+refaire.
+
 Pour débuter : `TUTORIAL.md`, un tutoriel pas à pas avec le menu
 interactif (convertir, regarder et jouer E1M1 de Freedoom, comparer les
 deux modes de conversion, découper un grand niveau, convertir un
